@@ -16,12 +16,15 @@ export const NodeMarker = memo(function NodeMarker({
   id,
   lng,
   lat,
+  label,
   longLabel,
   tooltipLabel,
   hasError,
   isFavorite,
   offset,
   avatarClassName,
+  markerVariant = "avatar",
+  markerShape = "circle",
   isVisible = true,
   onClick,
 }: {
@@ -35,6 +38,8 @@ export const NodeMarker = memo(function NodeMarker({
   isFavorite?: boolean;
   offset?: PxOffset;
   avatarClassName?: string;
+  markerVariant?: "avatar" | "text";
+  markerShape?: "circle" | "triangle";
   isVisible?: boolean;
   onClick: (id: number, e: { originalEvent: MouseEvent }) => void;
 }) {
@@ -66,15 +71,41 @@ export const NodeMarker = memo(function NodeMarker({
               style={style}
               onClick={(e) => onClick(id, { originalEvent: e.nativeEvent })}
             >
-              <Avatar
-                nodeNum={id}
-                className={cn(
-                  "border-[1.5px] border-slate-600 shadow-m shadow-slate-600",
-                  avatarClassName,
-                )}
-                showError={hasError}
-                showFavorite={isFavorite}
-              />
+              {markerVariant === "text" ? (
+                <div
+                  className={cn(
+                    "flex size-10 items-center justify-center border-[1.5px] border-slate-600 bg-amber-400 text-lg shadow-m shadow-slate-600",
+                    markerShape === "circle" && "rounded-full",
+                    avatarClassName,
+                  )}
+                  style={
+                    markerShape === "triangle"
+                      ? {
+                          clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)",
+                        }
+                      : undefined
+                  }
+                >
+                  <span
+                    className={cn(
+                      "leading-none",
+                      markerShape === "triangle" && "mt-2",
+                    )}
+                  >
+                    {label}
+                  </span>
+                </div>
+              ) : (
+                <Avatar
+                  nodeNum={id}
+                  className={cn(
+                    "border-[1.5px] border-slate-600 shadow-m shadow-slate-600",
+                    avatarClassName,
+                  )}
+                  showError={hasError}
+                  showFavorite={isFavorite}
+                />
+              )}
             </button>
           </TooltipTrigger>
           <TooltipPortal>
@@ -93,7 +124,7 @@ export const NodeMarker = memo(function NodeMarker({
       {longLabel && ( // only show label if there's a longLabel
         <button
           type="button"
-          className="absolute top-16 left-1/2 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded bg-white/70 px-2 py-0.5 text-xs text-slate-900 backdrop-blur-xs  cursor-pointer"
+          className="absolute top-12 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-white/70 px-2 py-0.5 text-xs text-slate-900 backdrop-blur-xs cursor-pointer"
           style={style}
           onClick={(e) => onClick(id, { originalEvent: e.nativeEvent })}
         >

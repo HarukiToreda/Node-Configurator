@@ -7,6 +7,7 @@ import NodesPage from "@pages/Nodes/index.tsx";
 import SerialLogsPage from "@pages/SerialLogs.tsx";
 import SplitViewPage from "@pages/SplitView.tsx";
 import ConfigPage from "@pages/Settings/index.tsx";
+import WaypointsPage from "@pages/Waypoints.tsx";
 import {
   createRootRouteWithContext,
   createRoute,
@@ -148,6 +149,12 @@ const nodesRoute = createRoute({
   component: NodesPage,
 });
 
+const waypointsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "waypoints",
+  component: WaypointsPage,
+});
+
 const logsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/logs",
@@ -180,6 +187,7 @@ export const routeTree = rootRoute.addChildren([
   mapWithParamsRoute,
   settingsRoute.addChildren([radioRoute, deviceRoute, moduleRoute]),
   nodesRoute,
+  waypointsRoute,
   logsRoute,
   splitRoute,
   dialogWithParamsRoute,

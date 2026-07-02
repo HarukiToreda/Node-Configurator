@@ -2,8 +2,13 @@ import { NodeMarker } from "@components/PageComponents/Map/Markers/NodeMarker.ts
 import type { PopupState } from "@components/PageComponents/Map/Popups/PopupWrapper.tsx";
 import { PopupWrapper } from "@components/PageComponents/Map/Popups/PopupWrapper.tsx";
 import { WaypointDetail } from "@components/PageComponents/Map/Popups/WaypointDetail.tsx";
+import {
+  getWaypointIcon,
+  getWaypointName,
+} from "@components/PageComponents/Map/waypointPresentation.ts";
 import { useMapFitting } from "@core/hooks/useMapFitting";
 import { useDevice, type WaypointWithMetadata } from "@core/stores";
+import { toLngLat } from "@core/utils/geo.ts";
 import type { Protobuf } from "@meshtastic/sdk";
 import { useCallback } from "react";
 import type { MapRef } from "react-map-gl/maplibre";
@@ -15,8 +20,6 @@ export interface WaypointLayerProps {
   popupState: PopupState | undefined;
   setPopupState: (state: PopupState | undefined) => void;
 }
-
-import { toLngLat } from "@core/utils/geo.ts";
 
 export const WaypointLayer = ({
   mapRef,
@@ -54,15 +57,19 @@ export const WaypointLayer = ({
       latitudeI: waypoint.latitudeI,
       longitudeI: waypoint.longitudeI,
     });
+
     rendered.push(
       <NodeMarker
         key={`waypoint-${waypoint.id}`}
         id={waypoint.id}
         lng={lng}
         lat={lat}
-        label={String.fromCodePoint(waypoint.icon) ?? "📍"}
-        longLabel={waypoint.name}
-        avatarClassName="bg-amber-400 border-amber-500"
+        label={getWaypointIcon(waypoint)}
+        longLabel={getWaypointName(waypoint)}
+        tooltipLabel={getWaypointName(waypoint)}
+        avatarClassName="bg-amber-400 border-amber-500 text-slate-900"
+        markerVariant="text"
+        markerShape="triangle"
         onClick={(_, e) => onMarkerClick(waypoint, e)}
       />,
     );
@@ -90,5 +97,6 @@ export const WaypointLayer = ({
       </PopupWrapper>,
     );
   }
+
   return rendered;
 };

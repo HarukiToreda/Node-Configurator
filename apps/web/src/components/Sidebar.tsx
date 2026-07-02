@@ -6,6 +6,7 @@ import { SidebarSection } from "@components/UI/Sidebar/SidebarSection.tsx";
 import { Spinner } from "@components/UI/Spinner.tsx";
 import { Subtle } from "@components/UI/Typography/Subtle.tsx";
 import { useToast } from "@core/hooks/useToast.ts";
+import { useDeviceContext } from "@core/hooks/useDeviceContext.ts";
 import {
   useMyNodeAsProto,
   useNodesAsProto,
@@ -14,6 +15,7 @@ import { applyPreset } from "@core/presets.ts";
 import {
   useActiveConnection,
   useAppStore,
+  useDeviceStore,
   useDefaultConnection,
   useDevice,
   useSidebar,
@@ -26,6 +28,7 @@ import {
   LayersIcon,
   type LucideIcon,
   MapIcon,
+  MapPinnedIcon,
   MessageSquareIcon,
   RadioTowerIcon,
   RouterIcon,
@@ -110,6 +113,10 @@ export const Sidebar = ({
     getEffectiveConfig,
     getEffectiveModuleConfig,
   } = useDevice();
+  const { deviceId } = useDeviceContext();
+  const waypointCount = useDeviceStore(
+    (state) => state.getDevice(deviceId)?.waypoints.length ?? 0,
+  );
   const editor = useConfigEditor();
   const dirtyRadio = useSignal(
     editor?.dirtyRadioSections ?? EMPTY_DIRTY_STRING_SIGNAL,
@@ -178,6 +185,15 @@ export const Sidebar = ({
       icon: UsersIcon,
       href: "/nodes",
     },
+    ...(waypointCount > 0
+      ? [
+          {
+            name: `Waypoints (${waypointCount})`,
+            icon: MapPinnedIcon,
+            href: "/waypoints",
+          } satisfies NavLink,
+        ]
+      : []),
   ];
 
   const configLinks: NavLink[] = [

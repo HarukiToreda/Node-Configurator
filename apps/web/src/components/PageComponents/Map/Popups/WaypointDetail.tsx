@@ -1,5 +1,9 @@
 import { TimeAgo } from "@components/generic/TimeAgo";
 import { Separator } from "@components/UI/Separator.tsx";
+import {
+  getWaypointIcon,
+  getWaypointName,
+} from "@components/PageComponents/Map/waypointPresentation.ts";
 import { useNodeAsProto } from "@core/hooks/useNodesAsProto.ts";
 import type { WaypointWithMetadata } from "@core/stores";
 import {
@@ -49,13 +53,13 @@ export const WaypointDetail = ({ waypoint, myNode }: WaypointDetailProps) => {
       aria-labelledby={`wp-${waypoint.id}-title`}
       className="flex flex-col gap-2 px-1 text-sm dark:text-slate-900"
     >
-      <header className="flex items-center my-1 justify-between">
+      <header className="my-1 flex items-center justify-between">
         <h3
           id={`wp-${waypoint.id}-title`}
           className="flex items-center gap-2 font-semibold text-slate-900"
         >
-          <span aria-hidden>{String.fromCodePoint(waypoint.icon) ?? "📍"}</span>
-          <span>{waypoint.name}</span>
+          <span aria-hidden>{getWaypointIcon(waypoint)}</span>
+          <span>{getWaypointName(waypoint)}</span>
         </h3>
       </header>
 
@@ -67,9 +71,8 @@ export const WaypointDetail = ({ waypoint, myNode }: WaypointDetailProps) => {
 
       <section aria-label={t("waypointDetail.details")}>
         <dl className="space-y-1.5">
-          {/* Coordinates */}
           <div className="flex flex-wrap items-start gap-x-3">
-            <dt className="inline-flex items-top gap-2 text-slate-500 min-w-0">
+            <dt className="inline-flex min-w-0 items-top gap-2 text-slate-500">
               <MapPinnedIcon size={14} aria-hidden className="mt-1" />
               <span className="truncate">
                 {t("waypointDetail.longitude")}
@@ -84,9 +87,8 @@ export const WaypointDetail = ({ waypoint, myNode }: WaypointDetailProps) => {
             </dd>
           </div>
 
-          {/* Created */}
           <div className="flex flex-wrap items-start gap-x-3">
-            <dt className="inline-flex items-center gap-2 text-slate-500 min-w-0">
+            <dt className="inline-flex min-w-0 items-center gap-2 text-slate-500">
               <ClockPlusIcon size={14} aria-hidden />
               <span className="truncate">
                 {t("waypointDetail.createdDate")}
@@ -101,10 +103,9 @@ export const WaypointDetail = ({ waypoint, myNode }: WaypointDetailProps) => {
             </dd>
           </div>
 
-          {/* Updated */}
           {waypoint.metadata.updated && (
             <div className="flex flex-wrap items-start gap-x-3">
-              <dt className="inline-flex items-center gap-2 text-slate-500 min-w-0">
+              <dt className="inline-flex min-w-0 items-center gap-2 text-slate-500">
                 <RotateCwIcon size={14} aria-hidden />
                 <span className="truncate">{t("waypointDetail.updated")}</span>
               </dt>
@@ -118,10 +119,9 @@ export const WaypointDetail = ({ waypoint, myNode }: WaypointDetailProps) => {
             </div>
           )}
 
-          {/* Expires */}
           {waypoint.expire !== 0 && (
             <div className="flex flex-wrap items-start gap-x-3">
-              <dt className="inline-flex items-center gap-2 text-slate-500 min-w-0">
+              <dt className="inline-flex min-w-0 items-center gap-2 text-slate-500">
                 <ClockFadingIcon size={14} aria-hidden />
                 <span className="truncate">{t("waypointDetail.expires")}</span>
               </dt>
@@ -133,10 +133,9 @@ export const WaypointDetail = ({ waypoint, myNode }: WaypointDetailProps) => {
             </div>
           )}
 
-          {/* Distance */}
           {distance != null && (
             <div className="flex flex-wrap items-start gap-x-3">
-              <dt className="inline-flex items-center gap-2 text-slate-500 min-w-0">
+              <dt className="inline-flex min-w-0 items-center gap-2 text-slate-500">
                 <MoveHorizontalIcon size={14} aria-hidden />
                 <span className="truncate">{t("waypointDetail.distance")}</span>
               </dt>
@@ -151,18 +150,17 @@ export const WaypointDetail = ({ waypoint, myNode }: WaypointDetailProps) => {
             </div>
           )}
 
-          {/* Bearing */}
           {bearing != null && (
             <div className="flex flex-wrap items-start gap-x-3">
-              <dt className="inline-flex items-center gap-2 text-slate-500 min-w-0">
+              <dt className="inline-flex min-w-0 items-center gap-2 text-slate-500">
                 <CompassIcon size={14} aria-hidden />
                 <span className="truncate">{t("waypointDetail.bearing")}</span>
               </dt>
-              <dd className="ms-auto text-right inline-flex items-center ">
+              <dd className="ms-auto inline-flex items-center text-right">
                 <NavigationIcon
                   size={16}
                   aria-hidden
-                  className="shrink-0 origin-center transition-transform mr-2"
+                  className="mr-2 shrink-0 origin-center transition-transform"
                   style={{ transform: `rotate(${bearing - 45}deg)` }}
                 />
                 <data value={Math.round(bearing)}>{Math.round(bearing)}</data>
@@ -171,10 +169,9 @@ export const WaypointDetail = ({ waypoint, myNode }: WaypointDetailProps) => {
             </div>
           )}
 
-          {/* Locked To */}
           {waypoint.lockedTo != null && waypoint.lockedTo !== 0 && (
             <div className="flex flex-wrap items-start gap-x-3">
-              <dt className="inline-flex items-center gap-2 text-slate-500 min-w-0">
+              <dt className="inline-flex min-w-0 items-center gap-2 text-slate-500">
                 <UserLockIcon size={14} aria-hidden />
                 <span className="truncate">{t("waypointDetail.lockedTo")}</span>
               </dt>

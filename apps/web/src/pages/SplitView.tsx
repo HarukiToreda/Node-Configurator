@@ -5,6 +5,7 @@ import { SplitMessagesPage } from "@pages/Messages.tsx";
 import { SplitNodesPage } from "@pages/Nodes/index.tsx";
 import { SplitSerialLogsPage } from "@pages/SerialLogs.tsx";
 import { SplitConfigPage } from "@pages/Settings/index.tsx";
+import { SplitWaypointsPage } from "@pages/Waypoints.tsx";
 import { cn } from "@core/utils/cn.ts";
 import { useNavigate } from "@tanstack/react-router";
 import { X } from "lucide-react";
@@ -15,6 +16,7 @@ type SplitViewHref =
   | "/messages/broadcast/0"
   | "/map"
   | "/nodes"
+  | "/waypoints"
   | "/settings/radio"
   | "/settings/device"
   | "/settings/module"
@@ -29,6 +31,7 @@ const splitPaneDefinitions: SplitPaneDefinition[] = [
   { href: "/messages/broadcast/0", label: "Messages" },
   { href: "/map", label: "Map" },
   { href: "/nodes", label: "Nodes" },
+  { href: "/waypoints", label: "Waypoints" },
   { href: "/settings/radio", label: "Radio Config" },
   { href: "/settings/device", label: "Device Config" },
   { href: "/settings/module", label: "Module Config" },
@@ -43,6 +46,8 @@ const renderPane = (href: SplitViewHref): ReactNode => {
       return <SplitMapPage />;
     case "/nodes":
       return <SplitNodesPage />;
+    case "/waypoints":
+      return <SplitWaypointsPage />;
     case "/settings/radio":
       return <SplitConfigPage section="radio" />;
     case "/settings/device":
