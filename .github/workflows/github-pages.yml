@@ -19,22 +19,23 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
+      NODE_OPTIONS: --max-old-space-size=4096
       VITE_GITHUB_PAGES: "true"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
           cache-dependency-path: "**/pnpm-lock.yaml"
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

@@ -12,14 +12,13 @@ permissions:
 jobs:
   build-and-package:
     runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -27,6 +26,9 @@ jobs:
           node-version: 24
           cache: pnpm
           cache-dependency-path: "**/pnpm-lock.yaml"
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Prewarm & Install (workspace)
         run: |
@@ -37,6 +39,7 @@ jobs:
       - name: Build publishable packages
         run: |
           pnpm -r \
+            --workspace-concurrency=1 \
             --filter @meshtastic/sdk \
             --filter @meshtastic/sdk-react \
             --filter @meshtastic/sdk-storage-sqlocal \
