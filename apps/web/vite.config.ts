@@ -85,6 +85,17 @@ export default defineConfig(({ mode }) => {
       },
       VitePWA({
         selfDestroying: true,
+        manifest: {
+          name: "Haru Client",
+          short_name: "Haru Client",
+          description: "Haru Client",
+          start_url: base,
+          scope: base,
+          display: "standalone",
+          background_color: "#ffffff",
+          theme_color: "#67ea94",
+          lang: "en",
+        },
       }),
     ],
     optimizeDeps: {
