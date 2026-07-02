@@ -18,11 +18,18 @@ try {
 }
 
 try {
-  version = execSync("git describe --tags --abbrev=0", {
+  const latestTag = execSync("git tag --sort=-v:refname", {
     encoding: "utf8",
-  }).trim();
-} catch (error) {
-  console.error("Error getting git version:", error);
+  })
+    .split(/\r?\n/)
+    .map((tag) => tag.trim())
+    .find(Boolean);
+
+  if (latestTag) {
+    version = latestTag;
+  }
+} catch {
+  // Leave the fallback version in place when tags are unavailable.
 }
 
 const CONTENT_SECURITY_POLICY =
