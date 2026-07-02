@@ -30,7 +30,9 @@ i18next
   .init({
     backend: {
       // With this setup, {{lng}} will correctly resolve to 'en-US', 'fi-FI', etc.
-      loadPath: "/i18n/locales/{{lng}}/{{ns}}.json",
+      // Prefixed with BASE_URL so this also resolves when the app is served
+      // from a subpath (e.g. GitHub Pages' /Node-Configurator/).
+      loadPath: `${import.meta.env.BASE_URL}i18n/locales/{{lng}}/{{ns}}.json`,
     },
     react: {
       useSuspense: true,
