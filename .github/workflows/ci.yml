@@ -27,8 +27,10 @@ jobs:
           cache: pnpm
           cache-dependency-path: "**/pnpm-lock.yaml"
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
 
       - name: Prewarm & Install (workspace)
         run: |
