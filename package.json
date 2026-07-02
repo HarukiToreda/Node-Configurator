@@ -1,0 +1,58 @@
+{
+  "name": "haru-client-workspace",
+  "version": "2.7.0-0",
+  "description": "Haru Client workspace",
+  "homepage": "https://github.com/HarukiToreda/Node-Configurator",
+  "bugs": {
+    "url": "https://github.com/HarukiToreda/Node-Configurator/issues"
+  },
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HarukiToreda/Node-Configurator.git"
+  },
+  "type": "module",
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt --check .",
+    "format:fix": "oxfmt .",
+    "check": "pnpm lint && pnpm format",
+    "check:fix": "pnpm lint:fix && pnpm format:fix",
+    "build:all": "pnpm run --filter '*' build",
+    "clean:all": "pnpm run --filter '*' clean",
+    "publish:packages": "pnpm run build --filter 'packages/transport-*'",
+    "test": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report e2e/.report",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.12.1",
+    "@meshtastic/protobufs": "workspace:*",
+    "ste-simple-events": "^3.0.11",
+    "tslog": "^4.9.3"
+  },
+  "devDependencies": {
+    "@meshtastic/core": "jsr:^2.6.6",
+    "@meshtastic/sdk": "workspace:*",
+    "@playwright/test": "^1.61.1",
+    "@types/node": "^25.9.3",
+    "husky": "^9.1.0",
+    "lint-staged": "^17.0.8",
+    "oxfmt": "^0.56.0",
+    "oxlint": "^1.71.0",
+    "tsdown": "^0.22.3",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "oxlint",
+      "oxfmt"
+    ]
+  },
+  "packageManager": "pnpm@11.9.0"
+}

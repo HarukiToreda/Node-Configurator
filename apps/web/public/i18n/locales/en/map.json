@@ -1,0 +1,115 @@
+{
+  "maplibre": {
+    "GeolocateControl.FindMyLocation": "Find my location",
+    "NavigationControl.ZoomIn": "Zoom in",
+    "NavigationControl.ZoomOut": "Zoom out",
+    "CooperativeGesturesHandler.WindowsHelpText": "Use Ctrl + scroll to zoom the map",
+    "CooperativeGesturesHandler.MacHelpText": "Use ⌘ + scroll to zoom the map",
+    "CooperativeGesturesHandler.MobileHelpText": "Use two fingers to move the map"
+  },
+  "layerTool": {
+    "nodeMarkers": "Show nodes",
+    "directNeighbors": "Show direct connections",
+    "remoteNeighbors": "Show remote connections",
+    "positionPrecision": "Show position precision",
+    "traceroutes": "Show traceroutes",
+    "waypoints": "Show waypoints",
+    "heatmap": "Show heatmap",
+    "density": "Density"
+  },
+  "mapMenu": {
+    "locateAria": "Locate my node",
+    "layersAria": "Change map style"
+  },
+  "mapContextMenu": {
+    "dropWaypoint": "Drop waypoint"
+  },
+  "waypointDetail": {
+    "edit": "Edit",
+    "description": "Description:",
+    "createdBy": "Edited by:",
+    "createdDate": "Created:",
+    "updated": "Updated:",
+    "expires": "Expires:",
+    "distance": "Distance:",
+    "bearing": "Absolute bearing:",
+    "lockedTo": "Locked by:",
+    "latitude": "Latitude:",
+    "longitude": "Longitude:"
+  },
+  "waypointDialog": {
+    "title": "Drop Waypoint",
+    "description": "Create a waypoint at the selected map location.",
+    "name": {
+      "label": "Name",
+      "placeholder": "Meeting point"
+    },
+    "descriptionField": {
+      "label": "Description",
+      "placeholder": "Optional notes about this waypoint"
+    },
+    "icon": {
+      "label": "Icon",
+      "empty": "Select emoji",
+      "fieldAria": "Select waypoint icon",
+      "popoverTitle": "Choose an emoji",
+      "searchPlaceholder": "Search emoji",
+      "pickAria": "Use {{icon}} as waypoint icon",
+      "noResults": "No emoji matched that search.",
+      "groups": {
+        "people": "People",
+        "nature": "Nature",
+        "places": "Places",
+        "travel": "Travel",
+        "objects": "Objects",
+        "symbols": "Symbols",
+        "food": "Food",
+        "activities": "Activities"
+      }
+    },
+    "channel": {
+      "label": "Channel"
+    },
+    "expiresAt": {
+      "label": "Expires At"
+    },
+    "quickExpiry": {
+      "daysLabel": "Days",
+      "hoursLabel": "Hours",
+      "groups": {
+        "days": "Days",
+        "hours": "Hours"
+      },
+      "dayOption_one": "{{count}} day",
+      "dayOption_other": "{{count}} days",
+      "hourOption_one": "{{count}} hour",
+      "hourOption_other": "{{count}} hours"
+    },
+    "lockToNode": {
+      "label": "Lock to my node",
+      "description": "Only your node will be allowed to update this waypoint.",
+      "unavailable": "Unavailable until the connected node identity is known."
+    },
+    "coordinates": {
+      "label": "Coordinates"
+    },
+    "submit": "Create waypoint",
+    "cancel": "Cancel",
+    "success": {
+      "title": "Waypoint created",
+      "description": "The waypoint was sent to the selected channel."
+    },
+    "error": {
+      "title": "Waypoint could not be created",
+      "description": "Check the connection and try again."
+    },
+    "validation": {
+      "nameRequired": "Waypoint name is required",
+      "iconRequired": "Waypoint icon is required",
+      "invalidExpiry": "Waypoint expiry must be a valid date and time"
+    }
+  },
+  "myNode": {
+    "tooltip": "This device"
+  }
+}

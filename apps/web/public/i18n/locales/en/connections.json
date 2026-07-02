@@ -1,0 +1,80 @@
+{
+  "page": {
+    "title": "Connect via COM",
+    "description": "Choose your node's serial port and Haru Client will connect right away."
+  },
+  "serial": {
+    "title": "Serial connection",
+    "description": "Pick the COM port for your node. The current session is temporary and is not saved in your browser."
+  },
+  "connectionType_ble": "BLE",
+  "connectionType_serial": "Serial",
+  "connectionType_network": "Network",
+  "deleteConnection": "Delete connection",
+  "areYouSure": "This will remove {{name}}. You canot undo this action.",
+  "moreActions": "More actions",
+  "noConnections": {
+    "title": "No connections yet.",
+    "description": "Create your first connection. It will connect immediately and be saved for later."
+  },
+  "lastConnectedAt": "Last connected: {{date}}",
+  "neverConnected": "Never connected",
+  "default": "Default",
+  "button": {
+    "connect": "Connect",
+    "selectPort": "Select COM Port",
+    "chooseAnotherPort": "Choose Another Port",
+    "reconnect": "Reconnect",
+    "disconnect": "Disconnect",
+    "skipBack": "Back to Client",
+    "retry": "Retry",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "setDefault": "Set as default",
+    "unsetDefault": "Unset default",
+    "rename": "Rename",
+    "edit": "Edit"
+  },
+  "renameConnection": "Rename connection",
+  "renameDescription": "Enter a new name for this connection.",
+  "nameLabel": "Name",
+  "editConnection": {
+    "title": "Edit Connection",
+    "description": "Modify the settings for this connection."
+  },
+  "toasts": {
+    "connected": "Connected",
+    "nowConnected": "{{name}} is now connected",
+    "nowDisconnected": "{{name}} is now disconnected",
+    "disconnected": "Disconnected",
+    "failed": "Failed to connect",
+    "checkConnection": "Check your device or settings and try again",
+    "defaultSet": "Default set",
+    "defaultConnection": "Default connection is now {{nameisconnected}}",
+    "deleted": "Deleted",
+    "deletedByName": "{{name}} was removed",
+    "pickConnectionAgain": "Could not connect. You may need to reselect the device/port.",
+    "added": "Connection added",
+    "savedByName": "{{name}} saved.",
+    "savedCantConnect": "The connection was saved but could not connect.",
+    "renamed": "Renamed",
+    "renamedByName": "Connection renamed to {{name}}.",
+    "updated": "Updated",
+    "updatedByName": "{{name}} has been updated."
+  },
+  "overlay": {
+    "srTitle": "Connecting to device",
+    "phase": {
+      "connecting": "Opening transport…",
+      "configuring": "Streaming configuration…"
+    },
+    "chip": {
+      "identity": "Identity",
+      "metadata": "Metadata",
+      "channels": "Channels",
+      "nodes": "Nodes"
+    },
+    "stuckHint": "Taking longer than usual. The device may be in CLI / bootloader mode, or the firmware isn't responding to config requests.",
+    "cancel": "Cancel"
+  }
+}

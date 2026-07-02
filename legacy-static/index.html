@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Node Configurator</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">Meshtastic Preset Editor</p>
+        <h1>Load a preset, tweak the settings you care about, and export the exact commands to apply.</h1>
+        <p class="lede">
+          Presets are just starting points. Every setting stays editable, so you can quickly tune one node profile
+          without rebuilding the whole command list by hand.
+        </p>
+      </section>
+
+      <section class="panel controls">
+        <div class="panel-heading">
+          <div>
+            <p class="label">Preset</p>
+            <h2>Preset Loader</h2>
+          </div>
+          <span class="badge" id="preset-count"></span>
+        </div>
+
+        <div class="toolbar">
+          <label class="field">
+            <span>Preset</span>
+            <select id="preset-select" aria-label="Preset"></select>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="reset-preset-button" type="button" class="secondary">Reset To Preset</button>
+          <button id="copy-script-button" type="button">Copy Script</button>
+          <button id="download-script-button" type="button" class="secondary">Download .ps1</button>
+        </div>
+
+        <p class="note" id="preset-description"></p>
+      </section>
+
+      <section class="content-grid">
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="label">Editor</p>
+              <h2>Settings</h2>
+            </div>
+          </div>
+          <div id="settings-groups" class="settings-groups"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="label">Output</p>
+              <h2>Generated PowerShell</h2>
+            </div>
+          </div>
+          <pre id="script-output" class="code-block"></pre>
+        </article>
+      </section>
+    </main>
+
+    <template id="settings-group-template">
+      <section class="settings-group">
+        <h3></h3>
+        <ul></ul>
+      </section>
+    </template>
+
+    <template id="setting-field-template">
+      <li class="setting-row">
+        <label class="field setting-field">
+          <span class="setting-label"></span>
+          <small class="setting-key"></small>
+          <div class="setting-input-wrap"></div>
+        </label>
+      </li>
+    </template>
+
+    <datalist id="region-options"></datalist>
+
+    <script src="app.js"></script>
+  </body>
+</html>
