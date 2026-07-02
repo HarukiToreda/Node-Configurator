@@ -47,12 +47,7 @@ jobs:
 
       - name: Build web app
         working-directory: apps/web
-        # vite-plugin-pwa writes dist/sw.js directly via fs.writeFile in its
-        # closeBundle hook; on Linux runners this occasionally races
-        # rolldown-vite's own dist output and fails with ENOENT before any
-        # chunks are even logged. Retrying once clears it (doesn't reproduce
-        # locally on Windows or on a second attempt in CI).
-        run: pnpm run build || pnpm run build
+        run: pnpm run build
 
       - name: Prepare Pages artifact
         shell: bash

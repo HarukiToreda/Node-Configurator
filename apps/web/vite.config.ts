@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { mkdirSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import tailwindcss from "@tailwindcss/vite";
@@ -65,6 +66,23 @@ export default defineConfig(({ mode }) => {
           },
         },
       }),
+      {
+        // vite-plugin-pwa writes dist/sw.js via a raw fs.writeFile in its
+        // closeBundle hook, on the assumption that outDir already exists
+        // from the main bundle write. On some CI filesystems that write
+        // hasn't landed yet when closeBundle fires, so sw.js's own write
+        // throws ENOENT. Guarantee the directory exists just before that
+        // hook runs.
+        name: "ensure-out-dir-before-pwa",
+        closeBundle: {
+          order: "pre",
+          handler() {
+            mkdirSync(path.resolve(process.cwd(), "dist"), {
+              recursive: true,
+            });
+          },
+        },
+      },
       VitePWA({
         selfDestroying: true,
       }),
