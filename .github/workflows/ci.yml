@@ -38,6 +38,9 @@ jobs:
           pnpm fetch
           pnpm install --frozen-lockfile --offline
 
+      - name: Generate protobufs
+        run: pnpm --filter @meshtastic/protobufs run build
+
       - name: Build publishable packages
         run: |
           pnpm -r \
