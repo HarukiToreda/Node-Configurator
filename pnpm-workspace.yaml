@@ -1,4 +1,5 @@
 allowBuilds:
+  '@bufbuild/buf': true
   "@serialport/bindings-cpp": false
   "@tailwindcss/oxide": false
   "core-js": false
