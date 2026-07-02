@@ -5,6 +5,7 @@ import MapPage from "@pages/Map/index.tsx";
 import MessagesPage from "@pages/Messages.tsx";
 import NodesPage from "@pages/Nodes/index.tsx";
 import SerialLogsPage from "@pages/SerialLogs.tsx";
+import SplitViewPage from "@pages/SplitView.tsx";
 import ConfigPage from "@pages/Settings/index.tsx";
 import {
   createRootRouteWithContext,
@@ -153,6 +154,12 @@ const logsRoute = createRoute({
   component: SerialLogsPage,
 });
 
+const splitRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/split",
+  component: SplitViewPage,
+});
+
 const dialogWithParamsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/dialog/$dialogId",
@@ -174,6 +181,7 @@ export const routeTree = rootRoute.addChildren([
   settingsRoute.addChildren([radioRoute, deviceRoute, moduleRoute]),
   nodesRoute,
   logsRoute,
+  splitRoute,
   dialogWithParamsRoute,
   connectionsRoute,
 ]);

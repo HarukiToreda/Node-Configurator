@@ -29,6 +29,7 @@ export interface PageLayoutProps {
   rightBarClassName?: string;
   topBarClassName?: string;
   contentClassName?: string;
+  hideFooter?: boolean;
 }
 
 export const PageLayout = ({
@@ -42,7 +43,10 @@ export const PageLayout = ({
   rightBarClassName,
   topBarClassName,
   contentClassName,
+  hideFooter,
 }: PageLayoutProps) => {
+  const showHeader = Boolean(label || actions?.length);
+
   return (
     <ErrorBoundary FallbackComponent={ErrorPage}>
       <div className="flex flex-1 bg-background text-foreground overflow-hidden">
@@ -59,55 +63,55 @@ export const PageLayout = ({
         )}
 
         <div className="flex flex-1 flex-col min-w-0">
-          {/* Header */}
-          <header
-            className={cn(
-              "flex h-14 shrink-0 mt-2 p-2 items-center border-b border-slate-300 dark:border-slate-700",
-              topBarClassName,
-            )}
-          >
-            {/* Header Content */}
-            <div className="flex flex-1 items-center justify-between min-w-0">
-              <span className="text-lg font-medium text-foreground truncate px-2">
-                {label}
-              </span>
-              <div className="flex items-center space-x-1 md:space-x-2 shrink-0 pr-6">
-                {actions?.map((action) => {
-                  return (
-                    <button
-                      key={action.key}
-                      type="button"
-                      disabled={action.disabled || action.isLoading}
-                      className={cn(
-                        "flex items-center space-x-2 py-2 px-3 rounded-md",
-                        "text-foreground transition-colors duration-200",
-                        "disabled:opacity-50 disabled:cursor-not-allowed",
-                        action.className,
-                      )}
-                      onClick={action.onClick}
-                      aria-label={action.ariaLabel || `Action ${action.key}`}
-                      aria-disabled={action.disabled}
-                      aria-busy={action.isLoading}
-                    >
-                      {action.icon &&
-                        (action.isLoading ? (
-                          <Spinner size="md" />
-                        ) : (
-                          <action.icon
-                            className={cn("h-5 w-5", action.iconClasses)}
-                          />
-                        ))}
-                      {action.label && (
-                        <span className="text-sm px-1 pt-0.5">
-                          {action.label}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+          {showHeader && (
+            <header
+              className={cn(
+                "flex h-14 shrink-0 mt-2 p-2 items-center border-b border-slate-300 dark:border-slate-700",
+                topBarClassName,
+              )}
+            >
+              <div className="flex flex-1 items-center justify-between min-w-0">
+                <span className="text-lg font-medium text-foreground truncate px-2">
+                  {label}
+                </span>
+                <div className="flex items-center space-x-1 md:space-x-2 shrink-0 pr-6">
+                  {actions?.map((action) => {
+                    return (
+                      <button
+                        key={action.key}
+                        type="button"
+                        disabled={action.disabled || action.isLoading}
+                        className={cn(
+                          "flex items-center space-x-2 py-2 px-3 rounded-md",
+                          "text-foreground transition-colors duration-200",
+                          "disabled:opacity-50 disabled:cursor-not-allowed",
+                          action.className,
+                        )}
+                        onClick={action.onClick}
+                        aria-label={action.ariaLabel || `Action ${action.key}`}
+                        aria-disabled={action.disabled}
+                        aria-busy={action.isLoading}
+                      >
+                        {action.icon &&
+                          (action.isLoading ? (
+                            <Spinner size="md" />
+                          ) : (
+                            <action.icon
+                              className={cn("h-5 w-5", action.iconClasses)}
+                            />
+                          ))}
+                        {action.label && (
+                          <span className="text-sm px-1 pt-0.5">
+                            {action.label}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          </header>
+            </header>
+          )}
 
           <main
             className={cn(
@@ -119,7 +123,7 @@ export const PageLayout = ({
           >
             {children}
           </main>
-          <Footer />
+          {!hideFooter && <Footer />}
         </div>
 
         {/* Right Sidebar */}

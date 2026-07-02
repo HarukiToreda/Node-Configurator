@@ -82,7 +82,11 @@ export const BaseMap = ({
           longitude: 0,
         }
       }
-      style={{ filter: darkMode ? "brightness(0.9)" : undefined }}
+      style={{
+        width: "100%",
+        height: "100%",
+        filter: darkMode ? "brightness(0.9)" : undefined,
+      }}
       locale={locale}
       interactiveLayerIds={interactiveLayerIds}
       onMouseMove={onMouseMove}

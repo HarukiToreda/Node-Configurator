@@ -39,7 +39,11 @@ export interface DeleteNoteDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const NodesPage = (): JSX.Element => {
+const NodesPageContent = ({
+  splitPane = false,
+}: {
+  splitPane?: boolean;
+}): JSX.Element => {
   const { t } = useTranslation("nodes");
   const { current } = useLang();
   const { hardware, connection, setDialogOpen } = useDevice();
@@ -266,7 +270,11 @@ const NodesPage = (): JSX.Element => {
   });
 
   return (
-    <PageLayout label="" leftBar={<Sidebar />}>
+    <PageLayout
+      label={splitPane ? "" : ""}
+      leftBar={splitPane ? undefined : <Sidebar />}
+      hideFooter={splitPane}
+    >
       <div className="pl-2 pt-2 flex flex-row">
         <div className="flex-1 mr-2">
           <Input
@@ -316,5 +324,9 @@ const NodesPage = (): JSX.Element => {
     </PageLayout>
   );
 };
+
+const NodesPage = (): JSX.Element => <NodesPageContent />;
+
+export const SplitNodesPage = (): JSX.Element => <NodesPageContent splitPane />;
 
 export default NodesPage;

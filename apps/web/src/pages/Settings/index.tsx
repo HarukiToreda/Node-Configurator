@@ -6,17 +6,21 @@ import { useConfigEditor, useSignal } from "@meshtastic/sdk-react";
 import { DeviceConfig } from "@pages/Settings/DeviceConfig.tsx";
 import { ModuleConfig } from "@pages/Settings/ModuleConfig.tsx";
 import { useRouterState } from "@tanstack/react-router";
-import {
-  RefreshCwIcon,
-  SaveIcon,
-  SaveOff,
-} from "lucide-react";
+import { RefreshCwIcon, SaveIcon, SaveOff } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { RadioConfig } from "./RadioConfig.tsx";
 
-const ConfigPage = () => {
+type ConfigSectionKey = "radio" | "device" | "module";
+
+const ConfigPageContent = ({
+  splitPane = false,
+  forcedSection,
+}: {
+  splitPane?: boolean;
+  forcedSection?: ConfigSectionKey;
+}) => {
   const editor = useConfigEditor();
   const editorIsDirty = useSignal(
     editor?.isDirty ?? {
@@ -37,17 +41,17 @@ const ConfigPage = () => {
   const sections = useMemo(
     () => [
       {
-        key: "radio",
+        key: "radio" as const,
         label: t("navigation.radioConfig"),
         component: RadioConfig,
       },
       {
-        key: "device",
+        key: "device" as const,
         label: t("navigation.deviceConfig"),
         component: DeviceConfig,
       },
       {
-        key: "module",
+        key: "module" as const,
         label: t("navigation.moduleConfig"),
         component: ModuleConfig,
       },
@@ -57,7 +61,9 @@ const ConfigPage = () => {
 
   const activeSection =
     sections.find((section) =>
-      routerState.location.pathname.includes(`/settings/${section.key}`),
+      forcedSection
+        ? section.key === forcedSection
+        : routerState.location.pathname.includes(`/settings/${section.key}`),
     ) ?? sections[0];
 
   const onFormInit = useCallback(
@@ -65,12 +71,10 @@ const ConfigPage = () => {
       setFormMethods(methods as UseFormReturn);
 
       setRhfState({
-        // Assume defailt on init, changes will be caught by subscription
         isDirty: false,
         isValid: true,
       });
 
-      // Unsubscribe from previous subscriptions & subscribe to form changes
       unsubRef.current?.();
       unsubRef.current = methods.subscribe({
         formState: { isDirty: true, isValid: true },
@@ -139,7 +143,8 @@ const ConfigPage = () => {
   const hasDrafts = editorIsDirty;
   const hasPending = hasDrafts || rhfState.isDirty;
   const buttonOpacity = hasPending ? "opacity-100" : "opacity-0";
-  const saveDisabled = isSaving || !hasPending || (!hasDrafts && !rhfState.isValid);
+  const saveDisabled =
+    isSaving || !hasPending || (!hasDrafts && !rhfState.isValid);
 
   const actions = useMemo(
     () => [
@@ -195,18 +200,25 @@ const ConfigPage = () => {
     ],
   );
 
-  const ActiveComponent = activeSection?.component;
+  const ActiveComponent = activeSection.component;
 
   return (
     <PageLayout
       contentClassName="overflow-auto"
-      leftBar={<Sidebar />}
-      label={activeSection?.label ?? ""}
+      leftBar={splitPane ? undefined : <Sidebar />}
+      label={splitPane ? "" : activeSection.label}
       actions={actions}
+      hideFooter={splitPane}
     >
-      {ActiveComponent && <ActiveComponent onFormInit={onFormInit} />}
+      <ActiveComponent onFormInit={onFormInit} />
     </PageLayout>
   );
 };
+
+const ConfigPage = () => <ConfigPageContent />;
+
+export const SplitConfigPage = ({ section }: { section: ConfigSectionKey }) => (
+  <ConfigPageContent splitPane forcedSection={section} />
+);
 
 export default ConfigPage;

@@ -17,7 +17,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@radix-ui/react-tooltip";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ArrowRightIcon,
   Dot,
@@ -35,6 +35,9 @@ export interface NodeDetailProps {
 
 export const NodeDetail = ({ node }: NodeDetailProps) => {
   const navigate = useNavigate();
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
   const { setDialogOpen } = useDevice();
   const { setNodeNumDetails } = useAppStore();
   const { t } = useTranslation("nodes");
@@ -67,7 +70,9 @@ export const NodeDetail = ({ node }: NodeDetailProps) => {
   function handleSeeNode() {
     setNodeNumDetails(node.num);
     setDialogOpen("nodeDetails", true);
-    navigate({ to: "/nodes" });
+    if (!pathname.startsWith("/split")) {
+      navigate({ to: "/nodes" });
+    }
   }
 
   return (

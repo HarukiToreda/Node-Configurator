@@ -116,10 +116,7 @@ const SerialAnsiText = ({ text }: { text: string }) => {
   return (
     <>
       {segments.map((segment, index) => (
-        <span
-          key={`${index}-${segment.text}`}
-          style={segment.style}
-        >
+        <span key={`${index}-${segment.text}`} style={segment.style}>
           {segment.text}
         </span>
       ))}
@@ -127,7 +124,11 @@ const SerialAnsiText = ({ text }: { text: string }) => {
   );
 };
 
-const SerialLogsPage = () => {
+const SerialLogsPageContent = ({
+  splitPane = false,
+}: {
+  splitPane?: boolean;
+}) => {
   const { t } = useTranslation("ui");
   const { serialLogs, clearSerialLogs, config } = useDevice();
   const myNode = useMyNodeAsProto();
@@ -231,10 +232,11 @@ const SerialLogsPage = () => {
 
   return (
     <PageLayout
-      label={t("serialLogs.title")}
-      leftBar={<Sidebar />}
+      label={splitPane ? "" : t("serialLogs.title")}
+      leftBar={splitPane ? undefined : <Sidebar />}
       actions={actions}
       contentClassName="overflow-hidden"
+      hideFooter={splitPane}
     >
       <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 py-3">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-900/40">
@@ -330,5 +332,9 @@ const SerialLogsPage = () => {
     </PageLayout>
   );
 };
+
+const SerialLogsPage = () => <SerialLogsPageContent />;
+
+export const SplitSerialLogsPage = () => <SerialLogsPageContent splitPane />;
 
 export default SerialLogsPage;

@@ -32,6 +32,7 @@ import { useTranslation } from "react-i18next";
 import { getChannelName } from "../components/PageComponents/Channels/Channels.tsx";
 
 type NodeInfoWithUnread = Protobuf.Mesh.NodeInfo & { unreadCount: number };
+type RoutedMessageType = "direct" | "broadcast";
 
 function SelectMessageChat() {
   const { t } = useTranslation("messages");
@@ -42,7 +43,17 @@ function SelectMessageChat() {
   );
 }
 
-export const MessagesPage = () => {
+const MessagesPageContent = ({
+  chatType,
+  numericChatId,
+  onNavigateToChat,
+  splitPane = false,
+}: {
+  chatType: MessageType;
+  numericChatId: number;
+  onNavigateToChat: (type: MessageType, id: string) => void;
+  splitPane?: boolean;
+}) => {
   const channels = useChannels();
   const unreadByKey = useUnreadByKey();
   const meshClient = useActiveClient();
@@ -72,26 +83,11 @@ export const MessagesPage = () => {
     [errorSet],
   );
 
-  const { type, chatId } = useParams({ from: messagesWithParamsRoute.id });
-
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { isCollapsed } = useSidebar();
   const [searchTerm, setSearchTerm] = useState<string>("");
   const { t } = useTranslation(["messages", "channels", "ui"]);
   const deferredSearch = useDeferredValue(searchTerm);
-
-  const navigateToChat = useCallback(
-    (type: MessageType, id: string) => {
-      const typeParam = type === MessageType.Direct ? "direct" : "broadcast";
-      navigate({ to: `/messages/${typeParam}/${id}` });
-    },
-    [navigate],
-  );
-
-  const chatType =
-    type === "direct" ? MessageType.Direct : MessageType.Broadcast;
-  const numericChatId = Number(chatId);
 
   const filteredChannels = useMemo(
     () =>
@@ -102,14 +98,18 @@ export const MessagesPage = () => {
   );
 
   useEffect(() => {
-    if (!type && !chatId && filteredChannels.length > 0) {
+    if (
+      chatType === MessageType.Broadcast &&
+      numericChatId === 0 &&
+      filteredChannels.length > 0
+    ) {
       const defaultChannel = filteredChannels[0];
-      navigateToChat(
+      onNavigateToChat(
         MessageType.Broadcast,
         defaultChannel?.index.toString() ?? "0",
       );
     }
-  }, [type, chatId, filteredChannels, navigateToChat]);
+  }, [chatType, numericChatId, filteredChannels, onNavigateToChat]);
 
   const currentChannel = channels.find((ch) => ch.index === numericChatId);
   const otherNode = getNode(numericChatId);
@@ -160,8 +160,6 @@ export const MessagesPage = () => {
       if (result.status === "error") {
         console.error("Failed to send message:", result.error);
       }
-      // Outbound state (Ack / Failed) is updated by the SDK chat slice when the
-      // routing packet for this message id arrives.
     },
     [meshClient, numericChatId, isDirect],
   );
@@ -186,51 +184,43 @@ export const MessagesPage = () => {
     }
   };
 
-  const leftSidebar = useMemo(
-    () => (
-      <Sidebar>
-        <SidebarSection label={t("navigation.channels")} className="py-2 px-0">
-          {filteredChannels?.map((channel) => (
-            <SidebarButton
-              key={channel.index}
-              count={channelUnread(channel.index)}
-              label={
-                channel.settings?.name ||
-                (channel.index === 0
-                  ? t("page.broadcastLabel", { ns: "channels" })
-                  : t("page.channelLabel", {
-                      index: channel.index,
-                      ns: "channels",
-                    }))
-              }
-              active={
-                numericChatId === channel.index &&
-                chatType === MessageType.Broadcast
-              }
-              onClick={() => {
-                navigateToChat(MessageType.Broadcast, channel.index.toString());
-                markChannelRead(channel.index);
-              }}
-            >
-              <HashIcon
-                size={16}
-                className={cn(isCollapsed ? "mr-0 mt-2" : "mr-2")}
-              />
-            </SidebarButton>
-          ))}
-        </SidebarSection>
-      </Sidebar>
-    ),
-    [
-      filteredChannels,
-      numericChatId,
-      chatType,
-      isCollapsed,
-      channelUnread,
-      navigateToChat,
-      markChannelRead,
-      t,
-    ],
+  const leftSidebarContent = (
+    <SidebarSection label={t("navigation.channels")} className="py-2 px-0">
+      {filteredChannels?.map((channel) => (
+        <SidebarButton
+          key={channel.index}
+          count={channelUnread(channel.index)}
+          label={
+            channel.settings?.name ||
+            (channel.index === 0
+              ? t("page.broadcastLabel", { ns: "channels" })
+              : t("page.channelLabel", {
+                  index: channel.index,
+                  ns: "channels",
+                }))
+          }
+          active={
+            numericChatId === channel.index &&
+            chatType === MessageType.Broadcast
+          }
+          onClick={() => {
+            onNavigateToChat(MessageType.Broadcast, channel.index.toString());
+            markChannelRead(channel.index);
+          }}
+        >
+          <HashIcon
+            size={16}
+            className={cn(isCollapsed ? "mr-0 mt-2" : "mr-2")}
+          />
+        </SidebarButton>
+      ))}
+    </SidebarSection>
+  );
+
+  const leftSidebar = splitPane ? (
+    <Sidebar embedded>{leftSidebarContent}</Sidebar>
+  ) : (
+    <Sidebar>{leftSidebarContent}</Sidebar>
   );
 
   const rightSidebar = (
@@ -264,7 +254,7 @@ export const MessagesPage = () => {
               numericChatId === node.num && chatType === MessageType.Direct
             }
             onClick={() => {
-              navigateToChat(MessageType.Direct, node.num.toString());
+              onNavigateToChat(MessageType.Direct, node.num.toString());
               markDirectRead(node.num);
             }}
           >
@@ -283,18 +273,23 @@ export const MessagesPage = () => {
 
   return (
     <PageLayout
-      label={`${t("page.title", {
-        interpolation: { escapeValue: false },
-        chatName:
-          isBroadcast && currentChannel
-            ? getChannelName(currentChannel)
-            : isDirect && otherNode
-              ? (otherNode.user?.longName ?? t("unknown.longName"))
-              : t("emptyState.title"),
-      })} 
-      `}
+      label={
+        splitPane
+          ? ""
+          : `${t("page.title", {
+              interpolation: { escapeValue: false },
+              chatName:
+                isBroadcast && currentChannel
+                  ? getChannelName(currentChannel)
+                  : isDirect && otherNode
+                    ? (otherNode.user?.longName ?? t("unknown.longName"))
+                    : t("emptyState.title"),
+            })} 
+      `
+      }
       rightBar={rightSidebar}
       leftBar={leftSidebar}
+      hideFooter={splitPane}
       actions={
         isDirect && otherNode
           ? [
@@ -343,4 +338,55 @@ export const MessagesPage = () => {
   );
 };
 
-export default MessagesPage;
+const RoutedMessagesPage = () => {
+  const { type, chatId } = useParams({ from: messagesWithParamsRoute.id });
+  const navigate = useNavigate();
+
+  const handleNavigateToChat = useCallback(
+    (nextType: MessageType, id: string) => {
+      const typeParam: RoutedMessageType =
+        nextType === MessageType.Direct ? "direct" : "broadcast";
+      navigate({ to: `/messages/${typeParam}/${id}` });
+    },
+    [navigate],
+  );
+
+  return (
+    <MessagesPageContent
+      chatType={type === "direct" ? MessageType.Direct : MessageType.Broadcast}
+      numericChatId={Number(chatId)}
+      onNavigateToChat={handleNavigateToChat}
+    />
+  );
+};
+
+export const SplitMessagesPage = () => {
+  const [selection, setSelection] = useState<{
+    type: MessageType;
+    chatId: number;
+  }>({
+    type: MessageType.Broadcast,
+    chatId: 0,
+  });
+
+  const handleNavigateToChat = useCallback(
+    (nextType: MessageType, id: string) => {
+      setSelection({
+        type: nextType,
+        chatId: Number(id),
+      });
+    },
+    [],
+  );
+
+  return (
+    <MessagesPageContent
+      splitPane
+      chatType={selection.type}
+      numericChatId={selection.chatId}
+      onNavigateToChat={handleNavigateToChat}
+    />
+  );
+};
+
+export default RoutedMessagesPage;

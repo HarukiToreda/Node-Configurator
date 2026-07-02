@@ -40,6 +40,10 @@ import { DeviceInfoPanel } from "./DeviceInfoPanel.tsx";
 
 export interface SidebarProps {
   children?: React.ReactNode;
+  embedded?: boolean;
+  navigationMode?: "normal" | "split";
+  onNavigateOverride?: (href: string) => void;
+  isOverrideActive?: (href: string) => boolean;
 }
 
 interface NavLink {
@@ -92,9 +96,20 @@ const CollapseToggleButton = () => {
   );
 };
 
-export const Sidebar = ({ children }: SidebarProps) => {
-  const { metadata, setDialogOpen, config, getEffectiveConfig, getEffectiveModuleConfig } =
-    useDevice();
+export const Sidebar = ({
+  children,
+  embedded = false,
+  navigationMode = "normal",
+  onNavigateOverride,
+  isOverrideActive,
+}: SidebarProps) => {
+  const {
+    metadata,
+    setDialogOpen,
+    config,
+    getEffectiveConfig,
+    getEffectiveModuleConfig,
+  } = useDevice();
   const editor = useConfigEditor();
   const dirtyRadio = useSignal(
     editor?.dirtyRadioSections ?? EMPTY_DIRTY_STRING_SIGNAL,
@@ -186,7 +201,30 @@ export const Sidebar = ({ children }: SidebarProps) => {
     },
   ];
 
-  const isActivePath = (href: string) => pathname === href.replace(/^\//, "") || pathname.startsWith(`${href.replace(/^\//, "")}/`);
+  const isActivePath = (href: string) =>
+    pathname === href.replace(/^\//, "") ||
+    pathname.startsWith(`${href.replace(/^\//, "")}/`);
+
+  const triggerNavigation = (href: string) => {
+    if (myNode === undefined) {
+      return;
+    }
+
+    if (navigationMode === "split" && onNavigateOverride) {
+      onNavigateOverride(href);
+      return;
+    }
+
+    navigate({ to: href });
+  };
+
+  const isLinkActive = (href: string) => {
+    if (navigationMode === "split" && isOverrideActive) {
+      return isOverrideActive(href);
+    }
+
+    return isActivePath(href);
+  };
 
   const handleApplyPreset = (presetId: string) => {
     if (!editor) {
@@ -223,6 +261,21 @@ export const Sidebar = ({ children }: SidebarProps) => {
       });
     }
   };
+
+  if (embedded) {
+    return (
+      <>
+        <div className="flex h-full min-h-0 w-52 flex-col lg:w-64">
+          <div className="flex-1 min-h-0 overflow-y-auto">{children}</div>
+        </div>
+        <PresetDialog
+          open={presetDialogOpen}
+          onOpenChange={setPresetDialogOpen}
+          onApply={handleApplyPreset}
+        />
+      </>
+    );
+  }
 
   return (
     <div
@@ -262,22 +315,15 @@ export const Sidebar = ({ children }: SidebarProps) => {
               count={link.count}
               label={link.name}
               Icon={link.icon}
-              onClick={() => {
-                if (myNode !== undefined) {
-                  navigate({ to: link.href });
-                }
-              }}
-              active={isActivePath(link.href)}
+              onClick={() => triggerNavigation(link.href)}
+              active={isLinkActive(link.href)}
               disabled={myNode === undefined}
             />
           );
         })}
       </SidebarSection>
 
-      <SidebarSection
-        label={t("config:sidebar.label")}
-        className="mt-4 px-0"
-      >
+      <SidebarSection label={t("config:sidebar.label")} className="mt-4 px-0">
         <SidebarButton
           label="Presets"
           Icon={SparklesIcon}
@@ -294,27 +340,32 @@ export const Sidebar = ({ children }: SidebarProps) => {
             count={link.count}
             label={link.name}
             Icon={link.icon}
-            onClick={() => {
-              if (myNode !== undefined) {
-                navigate({ to: link.href });
-              }
-            }}
-            active={isActivePath(link.href)}
+            onClick={() => triggerNavigation(link.href)}
+            active={isLinkActive(link.href)}
             disabled={myNode === undefined}
           />
         ))}
       </SidebarSection>
 
       <SidebarSection label={t("ui:tools.title")} className="mt-4 px-0">
+        {navigationMode !== "split" && (
+          <SidebarButton
+            label="Split View"
+            Icon={LayersIcon}
+            onClick={() => {
+              if (myNode !== undefined) {
+                navigate({ to: "/split" });
+              }
+            }}
+            active={isActivePath("/split")}
+            disabled={myNode === undefined}
+          />
+        )}
         <SidebarButton
           label={t("ui:serialLogs.button")}
           Icon={SquareTerminal}
-          onClick={() => {
-            if (myNode !== undefined) {
-              navigate({ to: "/logs" });
-            }
-          }}
-          active={isActivePath("/logs")}
+          onClick={() => triggerNavigation("/logs")}
+          active={isLinkActive("/logs")}
           disabled={myNode === undefined}
         />
       </SidebarSection>

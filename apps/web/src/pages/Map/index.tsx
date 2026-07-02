@@ -46,18 +46,14 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  type MapLayerMouseEvent,
-  Popup,
-  useMap,
-} from "react-map-gl/maplibre";
+import { type MapLayerMouseEvent, Popup, useMap } from "react-map-gl/maplibre";
 
 interface ContextMenuState {
   latitude: number;
   longitude: number;
 }
 
-const MapPage = () => {
+const MapPageContent = ({ splitPane = false }: { splitPane?: boolean }) => {
   const { t } = useTranslation(["map", "channels"]);
   const allNodes = useNodesAsProto();
   const device = useDevice();
@@ -265,7 +261,9 @@ const MapPage = () => {
 
   const waypointChannels = useMemo(() => {
     const channels = Array.from(device.channels.values())
-      .filter((channel) => channel.role !== Protobuf.Channel.Channel_Role.DISABLED)
+      .filter(
+        (channel) => channel.role !== Protobuf.Channel.Channel_Role.DISABLED,
+      )
       .sort((a, b) => a.index - b.index);
 
     if (channels.length === 0) {
@@ -307,123 +305,139 @@ const MapPage = () => {
   );
 
   return (
-    <PageLayout label="Map" noPadding actions={[]} leftBar={<Sidebar />}>
-      <BaseMap
-        onLoad={getMapBounds}
-        onMouseMove={onMouseMove}
-        onClick={onMapBackgroundClick}
-        onContextMenu={onMapContextMenu}
-        interactiveLayerIds={[
-          snrLayerElementId,
-          `${heatmapLayerElementId}-interaction`,
-        ]}
-      >
-        {heatmapLayerElement}
-        {markerElements}
-        {snrLayerElement}
-        {precisionCirclesElement}
-        {waypointLayerElement}
+    <PageLayout
+      label={splitPane ? "" : "Map"}
+      noPadding
+      actions={[]}
+      leftBar={splitPane ? undefined : <Sidebar />}
+      hideFooter={splitPane}
+    >
+      <div className="relative min-h-0 flex-1">
+        <BaseMap
+          onLoad={getMapBounds}
+          onMouseMove={onMouseMove}
+          onClick={onMapBackgroundClick}
+          onContextMenu={onMapContextMenu}
+          interactiveLayerIds={[
+            snrLayerElementId,
+            `${heatmapLayerElementId}-interaction`,
+          ]}
+        >
+          {heatmapLayerElement}
+          {markerElements}
+          {snrLayerElement}
+          {precisionCirclesElement}
+          {waypointLayerElement}
 
+          {contextMenuState && (
+            <Popup
+              anchor="top"
+              longitude={contextMenuState.longitude}
+              latitude={contextMenuState.latitude}
+              closeButton={false}
+              closeOnClick={false}
+              onClose={() => setContextMenuState(undefined)}
+              offset={16}
+            >
+              <div className="min-w-36 p-1">
+                <Button
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    setWaypointDialogOpen(true);
+                  }}
+                >
+                  {t("mapContextMenu.dropWaypoint")}
+                </Button>
+              </div>
+            </Popup>
+          )}
+
+          {snrHover && (
+            <SNRTooltip
+              pos={snrHover.pos}
+              snr={snrHover.snr}
+              from={snrHover.from}
+              to={snrHover.to}
+            />
+          )}
+        </BaseMap>
+        <div
+          className={cn(
+            "flex flex-col space-y-1 top-21 right-2.5",
+            splitPane ? "absolute" : "fixed",
+          )}
+        >
+          {myNode && hasPos(myNode?.position) && (
+            <button
+              type="button"
+              className={cn(
+                "rounded align-center",
+                "w-[29px] px-1 py-1 shadow-l outline-[2px] outline-stone-600/20",
+                "bg-stone-50 hover:bg-stone-200 dark:bg-stone-200 dark:hover:bg-stone-300 ",
+                "text-slate-600 hover:text-slate-700",
+                "dark:text-slate-600 hover:dark:text-slate-700",
+              )}
+              aria-label={t("mapMenu.locateAria")}
+              onClick={() => focusLngLat(toLngLat(myNode.position))}
+            >
+              <LocateFixedIcon className="w-[21px]" />
+            </button>
+          )}
+
+          <FilterControl
+            filterState={filterState}
+            defaultFilterValues={defaultFilterValues}
+            setFilterState={setFilterState}
+            isDirty={isFilterDirty(filterState)}
+            parameters={{
+              popoverContentProps: {
+                side: "bottom",
+                align: "end",
+                sideOffset: 7,
+              },
+              popoverTriggerClassName: cn(
+                "w-[29px] px-1 py-1 rounded shadow-l outline-[2px] outline-stone-600/20 ",
+                "dark:text-slate-600 dark:hover:text-slate-700 bg-stone-50 hover:bg-stone-200 dark:bg-stone-200 dark:hover:bg-stone-300 dark:active:bg-stone-300",
+                isFilterDirty(filterState)
+                  ? "text-slate-100 dark:text-slate-100 bg-green-600 dark:bg-green-600 hover:bg-green-700 dark:hover:bg-green-700 hover:text-slate-200 dark:hover:text-slate-200 active:bg-green-800 dark:active:bg-green-800 outline-green-600 dark:outline-green-700"
+                  : "",
+              ),
+              triggerIcon: <FunnelIcon className="w-[21px]" />,
+              showTextSearch: true,
+            }}
+          />
+
+          <MapLayerTool
+            visibilityState={visibilityState}
+            setVisibilityState={setVisibilityState}
+            heatmapMode={heatmapMode}
+            setHeatmapMode={setHeatmapMode}
+          />
+        </div>
         {contextMenuState && (
-          <Popup
-            anchor="top"
-            longitude={contextMenuState.longitude}
+          <WaypointDialog
+            open={waypointDialogOpen}
+            onOpenChange={(open) => {
+              setWaypointDialogOpen(open);
+              if (!open) {
+                setContextMenuState(undefined);
+              }
+            }}
             latitude={contextMenuState.latitude}
-            closeButton={false}
-            closeOnClick={false}
-            onClose={() => setContextMenuState(undefined)}
-            offset={16}
-          >
-            <div className="min-w-36 p-1">
-              <Button
-                size="sm"
-                className="w-full"
-                onClick={() => {
-                  setWaypointDialogOpen(true);
-                }}
-              >
-                {t("mapContextMenu.dropWaypoint")}
-              </Button>
-            </div>
-          </Popup>
-        )}
-
-        {snrHover && (
-          <SNRTooltip
-            pos={snrHover.pos}
-            snr={snrHover.snr}
-            from={snrHover.from}
-            to={snrHover.to}
+            longitude={contextMenuState.longitude}
+            channels={waypointChannels}
+            myNodeNum={myNode?.num ?? device.hardware.myNodeNum}
+            onSubmit={handleCreateWaypoint}
           />
         )}
-      </BaseMap>
-      <div className="flex flex-col space-y-1 fixed top-35 right-2.5">
-        {myNode && hasPos(myNode?.position) && (
-          <button
-            type="button"
-            className={cn(
-              "rounded align-center",
-              "w-[29px] px-1 py-1 shadow-l outline-[2px] outline-stone-600/20",
-              "bg-stone-50 hover:bg-stone-200 dark:bg-stone-200 dark:hover:bg-stone-300 ",
-              "text-slate-600 hover:text-slate-700",
-              "dark:text-slate-600 hover:dark:text-slate-700",
-            )}
-            aria-label={t("mapMenu.locateAria")}
-            onClick={() => focusLngLat(toLngLat(myNode.position))}
-          >
-            {" "}
-            <LocateFixedIcon className="w-[21px]" />
-          </button>
-        )}
-
-        <FilterControl
-          filterState={filterState}
-          defaultFilterValues={defaultFilterValues}
-          setFilterState={setFilterState}
-          isDirty={isFilterDirty(filterState)}
-          parameters={{
-            popoverContentProps: {
-              side: "bottom",
-              align: "end",
-              sideOffset: 7,
-            },
-            popoverTriggerClassName: cn(
-              "w-[29px] px-1 py-1 rounded shadow-l outline-[2px] outline-stone-600/20 ",
-              "dark:text-slate-600 dark:hover:text-slate-700 bg-stone-50 hover:bg-stone-200 dark:bg-stone-200 dark:hover:bg-stone-300 dark:active:bg-stone-300",
-              isFilterDirty(filterState)
-                ? "text-slate-100 dark:text-slate-100 bg-green-600 dark:bg-green-600 hover:bg-green-700 dark:hover:bg-green-700 hover:text-slate-200 dark:hover:text-slate-200 active:bg-green-800 dark:active:bg-green-800 outline-green-600 dark:outline-green-700"
-                : "",
-            ),
-            triggerIcon: <FunnelIcon className="w-[21px]" />,
-            showTextSearch: true,
-          }}
-        />
-
-        <MapLayerTool
-          visibilityState={visibilityState}
-          setVisibilityState={setVisibilityState}
-          heatmapMode={heatmapMode}
-          setHeatmapMode={setHeatmapMode}
-        />
       </div>
-      {contextMenuState && (
-        <WaypointDialog
-          open={waypointDialogOpen}
-          onOpenChange={(open) => {
-            setWaypointDialogOpen(open);
-            if (!open) {
-              setContextMenuState(undefined);
-            }
-          }}
-          latitude={contextMenuState.latitude}
-          longitude={contextMenuState.longitude}
-          channels={waypointChannels}
-          myNodeNum={myNode?.num ?? device.hardware.myNodeNum}
-          onSubmit={handleCreateWaypoint}
-        />
-      )}
     </PageLayout>
   );
 };
+
+const MapPage = () => <MapPageContent />;
+
+export const SplitMapPage = () => <MapPageContent splitPane />;
 
 export default MapPage;
