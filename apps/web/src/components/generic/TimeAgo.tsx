@@ -15,6 +15,8 @@ export interface TimeAgoProps {
   className?: string;
 }
 
+const isValidDate = (date: Date): boolean => !Number.isNaN(date.getTime());
+
 const TIME_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
   ["year", 31536000],
   ["month", 2592000],
@@ -75,8 +77,13 @@ export const TimeAgo = ({
   );
 
   const date = useMemo(() => new Date(timestamp), [timestamp]);
+  const isValid = useMemo(() => isValidDate(date), [date]);
 
   const fullDate = useMemo(() => {
+    if (!isValid) {
+      return "";
+    }
+
     const defaultOptions: Intl.DateTimeFormatOptions = {
       dateStyle: "full",
       timeStyle: "medium",
@@ -86,9 +93,14 @@ export const TimeAgo = ({
       ...tooltipOptions,
     });
     return formatter.format(date);
-  }, [date, locale, tooltipOptions]);
+  }, [date, isValid, locale, tooltipOptions]);
 
   useEffect(() => {
+    if (!isValid) {
+      setTimeAgo("");
+      return;
+    }
+
     const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
     let timerId: ReturnType<typeof setTimeout>;
 
@@ -105,7 +117,11 @@ export const TimeAgo = ({
     return () => {
       clearTimeout(timerId);
     };
-  }, [date, locale]);
+  }, [date, isValid, locale]);
+
+  if (!isValid) {
+    return <span className={className}>Unknown</span>;
+  }
 
   return (
     <TooltipProvider>

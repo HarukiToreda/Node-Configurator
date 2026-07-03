@@ -1,11 +1,10 @@
 import type { PxOffset } from "@components/PageComponents/Map/cluster.ts";
-import type { WaypointWithMetadata } from "@core/stores";
 import { memo } from "react";
 import { Popup } from "react-map-gl/maplibre";
 
 export type PopupState =
   | { type: "node"; num: number; offset: PxOffset }
-  | { type: "waypoint"; waypoint: WaypointWithMetadata };
+  | { type: "waypoint"; waypointId: number };
 
 export const PopupWrapper = memo(function SelectedNodePopup({
   lng,

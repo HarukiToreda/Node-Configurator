@@ -138,6 +138,21 @@ export function useConnections() {
         device.setConnectionPhase("configured");
         updateStatus(id, "configured");
         startMaintenanceHeartbeat(id, meshDevice);
+
+        const epochSeconds = Math.floor(Date.now() / 1000);
+        log.info("syncing node time from web client", {
+          id,
+          epochSeconds,
+          isoTime: new Date(epochSeconds * 1000).toISOString(),
+        });
+        void meshDevice.setTimeOnly(epochSeconds).catch((error) => {
+          const err = error as Error;
+          log.warn("time sync failed", {
+            id,
+            name: err?.name,
+            message: err?.message,
+          });
+        });
       };
 
       const unsubConfigComplete = meshDevice.events.onConfigComplete.subscribe(
@@ -303,7 +318,9 @@ export function useConnections() {
     const serial = (
       navigator as Navigator & {
         serial: {
-          requestPort: (options: Record<string, unknown>) => Promise<SerialPort>;
+          requestPort: (
+            options: Record<string, unknown>,
+          ) => Promise<SerialPort>;
         };
       }
     ).serial;

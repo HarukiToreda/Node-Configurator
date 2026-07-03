@@ -3,13 +3,35 @@ import type { Protobuf } from "@meshtastic/sdk";
 import { useCallback } from "react";
 import type { MapRef } from "react-map-gl/maplibre";
 
+interface FocusOptions {
+  offsetX?: number;
+  offsetY?: number;
+}
+
 export function useMapFitting(map: MapRef | undefined) {
   const focusLngLat = useCallback(
-    (position: LngLat) => {
+    (position: LngLat, options?: FocusOptions) => {
       if (!map) {
         return;
       }
       const [lng, lat] = position;
+      const offsetX = options?.offsetX ?? 0;
+      const offsetY = options?.offsetY ?? 0;
+
+      if (offsetX !== 0 || offsetY !== 0) {
+        const point = map.project([lng, lat]);
+        const shiftedCenter = map.unproject([
+          point.x + offsetX,
+          point.y + offsetY,
+        ]);
+
+        map.easeTo({
+          center: [shiftedCenter.lng, shiftedCenter.lat],
+          zoom: map.getZoom(),
+        });
+        return;
+      }
+
       map.easeTo({
         center: [lng, lat],
         zoom: map.getZoom(),

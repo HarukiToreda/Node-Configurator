@@ -37,6 +37,7 @@ type DeviceData = {
     Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>[]
   >;
   waypoints: WaypointWithMetadata[];
+  waypointOverrides: Map<number, WaypointWithMetadata>;
   neighborInfo: Map<number, Protobuf.Mesh.NeighborInfo>;
 };
 export type ConnectionPhase =
@@ -84,8 +85,19 @@ export interface Device extends DeviceData {
     from: number,
     rxTime: Date,
   ) => void;
+  setWaypointDisplayOverride: (
+    waypointId: number,
+    override:
+      | Partial<Protobuf.Mesh.Waypoint>
+      | Protobuf.Mesh.Waypoint
+      | undefined,
+    channel?: Types.ChannelNumber,
+    from?: number,
+    rxTime?: Date,
+  ) => void;
   removeWaypoint: (waypointId: number, toMesh: boolean) => Promise<void>;
   getWaypoint: (waypointId: number) => WaypointWithMetadata | undefined;
+  getDisplayedWaypoints: () => WaypointWithMetadata[];
   addConnection: (connection: MeshDevice) => void;
   addTraceRoute: (
     traceroute: Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>,
@@ -146,6 +158,151 @@ type DevicePersisted = {
   devices: Map<number, DeviceData>;
 };
 
+function normalizeWaypointMetadata(
+  metadata: WaypointWithMetadata["metadata"] | undefined,
+): WaypointWithMetadata["metadata"] {
+  const created =
+    metadata?.created instanceof Date
+      ? metadata.created
+      : new Date(metadata?.created ?? Date.now());
+  const updated =
+    metadata?.updated instanceof Date
+      ? metadata.updated
+      : metadata?.updated
+        ? new Date(metadata.updated)
+        : undefined;
+
+  return {
+    channel: metadata?.channel ?? 0,
+    from: metadata?.from ?? 0,
+    created: Number.isNaN(created.getTime()) ? new Date() : created,
+    updated: updated && !Number.isNaN(updated.getTime()) ? updated : undefined,
+  };
+}
+
+function normalizeWaypoint(
+  waypoint: WaypointWithMetadata,
+  override?: Partial<Protobuf.Mesh.Waypoint> | WaypointWithMetadata,
+): WaypointWithMetadata {
+  const mergedWaypoint = {
+    ...waypoint,
+    ...override,
+  };
+
+  return {
+    ...mergedWaypoint,
+    geofenceRadius: mergedWaypoint.geofenceRadius ?? 0,
+    boundingBox: mergedWaypoint.boundingBox,
+    notifyOnEnter: mergedWaypoint.notifyOnEnter ?? false,
+    notifyOnExit: mergedWaypoint.notifyOnExit ?? false,
+    notifyFavoritesOnly: mergedWaypoint.notifyFavoritesOnly ?? false,
+    metadata: normalizeWaypointMetadata(mergedWaypoint.metadata),
+  };
+}
+
+function buildWaypointDisplayOverride(
+  waypointId: number,
+  waypoint: Partial<Protobuf.Mesh.Waypoint> | Protobuf.Mesh.Waypoint,
+  channel: number,
+  from: number,
+  rxTime: Date,
+  existingWaypoint?: WaypointWithMetadata,
+): WaypointWithMetadata {
+  const created = existingWaypoint?.metadata.created ?? rxTime;
+
+  return normalizeWaypoint({
+    ...(existingWaypoint ?? { id: waypointId }),
+    ...waypoint,
+    metadata: {
+      channel,
+      from,
+      created,
+      updated: existingWaypoint ? rxTime : undefined,
+    },
+  } as WaypointWithMetadata);
+}
+
+function isWaypointActive(
+  waypoint: Pick<Protobuf.Mesh.Waypoint, "expire"> | undefined,
+  nowSeconds = currentEpochSeconds(),
+): boolean {
+  if (!waypoint) {
+    return false;
+  }
+
+  return waypoint.expire === 0 || waypoint.expire > nowSeconds;
+}
+
+function getDisplayedWaypoints(
+  device: Pick<DeviceData, "waypoints" | "waypointOverrides">,
+): WaypointWithMetadata[] {
+  const nowSeconds = currentEpochSeconds();
+  const displayed = new Map<number, WaypointWithMetadata>();
+
+  for (const waypoint of device.waypoints) {
+    if (!isWaypointActive(waypoint, nowSeconds)) {
+      continue;
+    }
+
+    displayed.set(
+      waypoint.id,
+      normalizeWaypoint(waypoint, device.waypointOverrides.get(waypoint.id)),
+    );
+  }
+
+  for (const [waypointId, override] of device.waypointOverrides) {
+    if (!displayed.has(waypointId) && isWaypointActive(override, nowSeconds)) {
+      displayed.set(waypointId, normalizeWaypoint(override));
+    }
+  }
+
+  return Array.from(displayed.values());
+}
+
+function hasGeofenceData(waypoint: Protobuf.Mesh.Waypoint): boolean {
+  return (
+    (waypoint.geofenceRadius ?? 0) > 0 ||
+    waypoint.boundingBox !== undefined ||
+    waypoint.notifyOnEnter === true ||
+    waypoint.notifyOnExit === true ||
+    waypoint.notifyFavoritesOnly === true
+  );
+}
+
+function mergeSelfEchoWaypoint(
+  existingWaypoint: WaypointWithMetadata,
+  incomingWaypoint: Protobuf.Mesh.Waypoint,
+  from: number,
+  myNodeNum: number | undefined,
+): Protobuf.Mesh.Waypoint {
+  const existingFrom = existingWaypoint.metadata?.from ?? 0;
+  const isLocalEcho =
+    from === 0 ||
+    (myNodeNum !== undefined && from === myNodeNum) ||
+    (existingFrom !== 0 && from === existingFrom);
+
+  if (!isLocalEcho) {
+    return incomingWaypoint;
+  }
+
+  if (hasGeofenceData(incomingWaypoint) || !hasGeofenceData(existingWaypoint)) {
+    return incomingWaypoint;
+  }
+
+  return {
+    ...incomingWaypoint,
+    geofenceRadius: existingWaypoint.geofenceRadius,
+    boundingBox: existingWaypoint.boundingBox,
+    notifyOnEnter: existingWaypoint.notifyOnEnter,
+    notifyOnExit: existingWaypoint.notifyOnExit,
+    notifyFavoritesOnly: existingWaypoint.notifyFavoritesOnly,
+  };
+}
+
+function currentEpochSeconds(): number {
+  return Math.floor(Date.now() / 1000);
+}
+
 function deviceFactory(
   id: number,
   get: () => PrivateDeviceState,
@@ -156,7 +313,14 @@ function deviceFactory(
   const traceroutes =
     data?.traceroutes ??
     new Map<number, Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>[]>();
-  const waypoints = data?.waypoints ?? [];
+  const waypointOverrides =
+    data?.waypointOverrides ?? new Map<number, WaypointWithMetadata>();
+  const nowSeconds = currentEpochSeconds();
+  const waypoints = (data?.waypoints ?? [])
+    .map((waypoint) =>
+      normalizeWaypoint(waypoint, waypointOverrides.get(waypoint.id)),
+    )
+    .filter((waypoint) => isWaypointActive(waypoint, nowSeconds));
   const neighborInfo =
     data?.neighborInfo ?? new Map<number, Protobuf.Mesh.NeighborInfo>();
   return {
@@ -164,6 +328,7 @@ function deviceFactory(
     myNodeNum,
     traceroutes,
     waypoints,
+    waypointOverrides,
     neighborInfo,
 
     status: Types.DeviceStatusEnum.DeviceDisconnected,
@@ -383,11 +548,20 @@ function deviceFactory(
             }
             newDevice.traceroutes = oldStore.traceroutes;
             newDevice.neighborInfo = oldStore.neighborInfo;
+            newDevice.waypointOverrides = oldStore.waypointOverrides;
 
             // Take this opportunity to remove stale waypoints
-            newDevice.waypoints = oldStore.waypoints.filter(
-              (waypoint) => !waypoint?.expire || waypoint.expire > Date.now(),
-            );
+            const nowSeconds = currentEpochSeconds();
+            newDevice.waypoints = oldStore.waypoints
+              .map((waypoint) =>
+                normalizeWaypoint(
+                  waypoint,
+                  newDevice.waypointOverrides.get(waypoint.id),
+                ),
+              )
+              .filter(
+                (waypoint) => !waypoint?.expire || waypoint.expire > nowSeconds,
+              );
 
             // Drop old device
             draft.devices.delete(otherId);
@@ -418,6 +592,18 @@ function deviceFactory(
       );
     },
     addWaypoint: (waypoint, channel, from, rxTime) => {
+      if (import.meta.env.DEV) {
+        console.debug("DeviceStore.addWaypoint", {
+          id: waypoint.id,
+          channel,
+          from,
+          geofenceRadius: waypoint.geofenceRadius,
+          boundingBox: waypoint.boundingBox,
+          notifyOnEnter: waypoint.notifyOnEnter,
+          notifyOnExit: waypoint.notifyOnExit,
+          notifyFavoritesOnly: waypoint.notifyFavoritesOnly,
+        });
+      }
       set(
         produce<PrivateDeviceState>((draft) => {
           const device = draft.devices.get(id);
@@ -428,35 +614,98 @@ function deviceFactory(
           const index = device.waypoints.findIndex(
             (wp) => wp.id === waypoint.id,
           );
+          const override = device.waypointOverrides.get(waypoint.id);
 
           if (index !== -1) {
+            const mergedWaypoint = mergeSelfEchoWaypoint(
+              device.waypoints[index] as WaypointWithMetadata,
+              waypoint,
+              from,
+              device.myNodeNum,
+            );
             const created =
               device.waypoints[index]?.metadata.created ?? new Date();
-            const updatedWaypoint = {
-              ...waypoint,
-              metadata: { created, updated: rxTime, from, channel },
-            };
+            const updatedWaypoint = normalizeWaypoint(
+              {
+                ...mergedWaypoint,
+                metadata: { created, updated: rxTime, from, channel },
+              } as WaypointWithMetadata,
+              override,
+            );
 
             // Remove existing waypoint
             device.waypoints.splice(index, 1);
 
             // Push new if no expiry or not expired
-            if (waypoint.expire === 0 || waypoint.expire > Date.now()) {
+            if (
+              mergedWaypoint.expire === 0 ||
+              mergedWaypoint.expire > currentEpochSeconds()
+            ) {
               device.waypoints.push(updatedWaypoint);
             }
           } else if (
             // only add if set to never expire or not already expired
             waypoint.expire === 0 ||
-            (waypoint.expire !== 0 && waypoint.expire < Date.now())
+            waypoint.expire > currentEpochSeconds()
           ) {
-            device.waypoints.push({
-              ...waypoint,
-              metadata: { created: rxTime, from, channel },
-            });
+            device.waypoints.push(
+              normalizeWaypoint(
+                {
+                  ...waypoint,
+                  metadata: { created: rxTime, from, channel },
+                } as WaypointWithMetadata,
+                override,
+              ),
+            );
           }
 
           // Enforce retention limit
           evictOldestEntries(device.waypoints, WAYPOINT_RETENTION_NUM);
+        }),
+      );
+    },
+    setWaypointDisplayOverride: (
+      waypointId,
+      override,
+      channel = 0,
+      from = 0,
+      rxTime = new Date(),
+    ) => {
+      set(
+        produce<PrivateDeviceState>((draft) => {
+          const device = draft.devices.get(id);
+          if (!device) {
+            return;
+          }
+
+          if (override) {
+            const existingWaypoint = device.waypoints.find(
+              (wp) => wp.id === waypointId,
+            );
+            device.waypointOverrides.set(
+              waypointId,
+              buildWaypointDisplayOverride(
+                waypointId,
+                override,
+                channel,
+                from,
+                rxTime,
+                existingWaypoint,
+              ),
+            );
+          } else {
+            device.waypointOverrides.delete(waypointId);
+          }
+
+          const index = device.waypoints.findIndex(
+            (wp) => wp.id === waypointId,
+          );
+          if (index >= 0) {
+            device.waypoints[index] = normalizeWaypoint(
+              device.waypoints[index] as WaypointWithMetadata,
+              device.waypointOverrides.get(waypointId),
+            );
+          }
         }),
       );
     },
@@ -506,6 +755,7 @@ function deviceFactory(
           if (idx >= 0) {
             device.waypoints.splice(idx, 1);
           }
+          device.waypointOverrides.delete(waypointId);
         }),
       );
     },
@@ -515,7 +765,31 @@ function deviceFactory(
         return;
       }
 
-      return device.waypoints.find((waypoint) => waypoint.id === waypointId);
+      const override = device.waypointOverrides.get(waypointId);
+      const waypoint = device.waypoints.find(
+        (candidate) => candidate.id === waypointId,
+      );
+
+      if (!waypoint && override && isWaypointActive(override)) {
+        return normalizeWaypoint(override);
+      }
+      if (!waypoint) {
+        return;
+      }
+
+      if (!isWaypointActive(waypoint)) {
+        return;
+      }
+
+      return normalizeWaypoint(waypoint, override);
+    },
+    getDisplayedWaypoints: () => {
+      const device = get().devices.get(id);
+      if (!device) {
+        return [];
+      }
+
+      return getDisplayedWaypoints(device);
     },
     setActiveNode: (node) => {
       set(
@@ -806,6 +1080,7 @@ const persistOptions: PersistOptions<PrivateDeviceState, DevicePersisted> = {
           myNodeNum: db.myNodeNum,
           traceroutes: db.traceroutes,
           waypoints: db.waypoints,
+          waypointOverrides: db.waypointOverrides,
           neighborInfo: db.neighborInfo,
         },
       ]),

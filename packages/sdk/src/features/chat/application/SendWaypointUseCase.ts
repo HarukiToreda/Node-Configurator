@@ -3,7 +3,6 @@ import * as Protobuf from "@meshtastic/protobufs";
 import { Result } from "better-result";
 import type { ResultType } from "better-result";
 import type { MeshClient } from "../../../core/client/MeshClient.ts";
-import { generatePacketId } from "../../../core/identifiers/PacketId.ts";
 import {
   ChannelNumber,
   type Destination,
@@ -20,8 +19,6 @@ export async function sendWaypoint(
     Emitter[Emitter.SendWaypoint],
     `📤 Sending waypoint to ${destination} on channel ${channel}`,
   );
-
-  waypoint.id = generatePacketId();
 
   try {
     const id = await client.sendPacket(

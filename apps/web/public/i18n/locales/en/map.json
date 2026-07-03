@@ -26,6 +26,12 @@
   },
   "waypointDetail": {
     "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this waypoint from the node and the client?",
+    "deleteSuccessTitle": "Waypoint deleted",
+    "deleteSuccessDescription": "The waypoint was removed from the selected channel.",
+    "deleteErrorTitle": "Waypoint could not be deleted",
+    "deleteErrorDescription": "Check the connection and try again.",
     "description": "Description:",
     "createdBy": "Edited by:",
     "createdDate": "Created:",
@@ -35,11 +41,20 @@
     "bearing": "Absolute bearing:",
     "lockedTo": "Locked by:",
     "latitude": "Latitude:",
-    "longitude": "Longitude:"
+    "longitude": "Longitude:",
+    "geofenceRadius": "Fence radius:",
+    "geofenceBox": "Fence box:",
+    "alerts": "Alerts:",
+    "alertEnter": "Enter",
+    "alertExit": "Exit",
+    "alertFavoritesOnly": "Favorites only",
+    "boxSize": "{{width}} m × {{height}} m"
   },
   "waypointDialog": {
     "title": "Drop Waypoint",
+    "editTitle": "Edit Waypoint",
     "description": "Create a waypoint at the selected map location.",
+    "editDescription": "Update this waypoint and resend it to the selected channel.",
     "name": {
       "label": "Name",
       "placeholder": "Meeting point"
@@ -47,6 +62,35 @@
     "descriptionField": {
       "label": "Description",
       "placeholder": "Optional notes about this waypoint"
+    },
+    "geofence": {
+      "label": "Geofence",
+      "description": "Optionally add a circular or boxed fence around this waypoint.",
+      "mode": {
+        "label": "Fence type",
+        "none": "None",
+        "circle": "Circle",
+        "box": "Rectangular box"
+      },
+      "radius": {
+        "label": "Circle radius ({{unit}})",
+        "placeholder": "Example: {{example}}"
+      },
+      "box": {
+        "toggleDescription": "Center a box on this waypoint.",
+        "widthLabel": "Box width ({{unit}})",
+        "widthPlaceholder": "Example: {{example}}",
+        "heightLabel": "Box height ({{unit}})",
+        "heightPlaceholder": "Example: {{example}}"
+      },
+      "alerts": {
+        "enterLabel": "Notify on enter",
+        "enterDescription": "Raise an alert when a node enters the fence.",
+        "exitLabel": "Notify on exit",
+        "exitDescription": "Raise an alert when a node leaves the fence.",
+        "favoritesLabel": "Favorites only",
+        "favoritesDescription": "Limit fence alerts to favorite nodes."
+      }
     },
     "icon": {
       "label": "Icon",
@@ -94,19 +138,27 @@
       "label": "Coordinates"
     },
     "submit": "Create waypoint",
+    "update": "Save waypoint",
     "cancel": "Cancel",
     "success": {
       "title": "Waypoint created",
-      "description": "The waypoint was sent to the selected channel."
+      "description": "The waypoint was sent to the selected channel.",
+      "updatedTitle": "Waypoint updated",
+      "updatedDescription": "The waypoint changes were sent to the selected channel."
     },
     "error": {
       "title": "Waypoint could not be created",
-      "description": "Check the connection and try again."
+      "description": "Check the connection and try again.",
+      "updatedTitle": "Waypoint could not be updated",
+      "updatedDescription": "Check the connection and try again."
     },
     "validation": {
       "nameRequired": "Waypoint name is required",
       "iconRequired": "Waypoint icon is required",
-      "invalidExpiry": "Waypoint expiry must be a valid date and time"
+      "invalidExpiry": "Waypoint expiry must be a valid date and time",
+      "invalidGeofenceRadius": "Enter a circle radius using whole {{unit}}",
+      "invalidGeofenceBox": "Enter both box width and height using whole {{unit}}",
+      "geofenceRequiredForAlerts": "Add a geofence radius or box before enabling alerts"
     }
   },
   "myNode": {

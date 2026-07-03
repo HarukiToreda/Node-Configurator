@@ -45,8 +45,12 @@ function makeRoute(from: number, time = Date.now() / 1000) {
     data: create(Protobuf.Mesh.RouteDiscoverySchema, {}),
   } as unknown as Types.PacketMetadata<Protobuf.Mesh.RouteDiscovery>;
 }
-function makeWaypoint(id: number, expire?: number) {
-  return create(Protobuf.Mesh.WaypointSchema, { id, expire });
+function makeWaypoint(
+  id: number,
+  expire?: number,
+  extra?: Partial<Protobuf.Mesh.Waypoint>,
+) {
+  return create(Protobuf.Mesh.WaypointSchema, { id, expire, ...extra });
 }
 
 function makeAdminMessage(fields: Record<string, any>) {
@@ -251,6 +255,180 @@ describe("DeviceStore – traceroutes & waypoints retention + merge on setHardwa
     expect(newDevice.getWaypoint(3)).toBeTruthy();
 
     vi.useRealTimers();
+  });
+
+  it("preserves existing geofence data when a local echo without geofence fields comes back from node 0", async () => {
+    const { useDeviceStore } = await freshStore(false);
+    const state = useDeviceStore.getState();
+    const device = state.addDevice(10);
+
+    device.setHardware(makeHardware(777));
+    device.addWaypoint(
+      makeWaypoint(42, 0, {
+        name: "Fence",
+        geofenceRadius: 30,
+        notifyOnEnter: true,
+      }),
+      0,
+      777,
+      new Date("2026-07-03T12:00:00Z"),
+    );
+
+    device.addWaypoint(
+      makeWaypoint(42, 0, {
+        name: "Fence",
+      }),
+      0,
+      0,
+      new Date("2026-07-03T12:00:05Z"),
+    );
+
+    const waypoint = state.getDevice(10)?.getWaypoint(42);
+    expect(waypoint?.geofenceRadius).toBe(30);
+    expect(waypoint?.notifyOnEnter).toBe(true);
+  });
+
+  it("returns locally overridden waypoint fields through getWaypoint", async () => {
+    const { useDeviceStore } = await freshStore(false);
+    const state = useDeviceStore.getState();
+    const device = state.addDevice(11);
+
+    device.addWaypoint(
+      makeWaypoint(77, 0, {
+        name: "Original",
+      }),
+      0,
+      0,
+      new Date("2026-07-03T12:00:00Z"),
+    );
+
+    device.setWaypointDisplayOverride(77, {
+      geofenceRadius: 123,
+      notifyOnExit: true,
+    });
+
+    const waypoint = state.getDevice(11)?.getWaypoint(77);
+    expect(waypoint?.geofenceRadius).toBe(123);
+    expect(waypoint?.notifyOnExit).toBe(true);
+    expect(waypoint?.name).toBe("Original");
+  });
+
+  it("does not return expired waypoints from local display overrides", async () => {
+    const { useDeviceStore } = await freshStore(false);
+    const state = useDeviceStore.getState();
+    const device = state.addDevice(12);
+
+    const expiredEpoch = Math.floor(Date.now() / 1000) - 60;
+    device.setWaypointDisplayOverride(
+      88,
+      makeWaypoint(88, expiredEpoch, {
+        name: "Expired",
+        geofenceRadius: 100,
+      }),
+    );
+
+    expect(state.getDevice(12)?.getWaypoint(88)).toBeUndefined();
+    expect(state.getDevice(12)?.getDisplayedWaypoints()).toEqual([]);
+  });
+
+  it("returns the new box geofence after editing a circle waypoint", async () => {
+    const { useDeviceStore } = await freshStore(false);
+    const state = useDeviceStore.getState();
+    const device = state.addDevice(13);
+
+    device.addWaypoint(
+      makeWaypoint(99, 0, {
+        name: "Fence",
+        geofenceRadius: 61,
+      }),
+      0,
+      777,
+      new Date("2026-07-03T12:00:00Z"),
+    );
+
+    const editedWaypoint = makeWaypoint(99, 0, {
+      name: "Fence",
+      geofenceRadius: 0,
+      boundingBox: create(Protobuf.Mesh.BoundingBoxSchema, {
+        longitudeWestI: -741982000,
+        latitudeSouthI: 409179000,
+        longitudeEastI: -741980000,
+        latitudeNorthI: 409181000,
+      }),
+    });
+
+    device.addWaypoint(
+      editedWaypoint,
+      0,
+      777,
+      new Date("2026-07-03T12:05:00Z"),
+    );
+    device.setWaypointDisplayOverride(
+      99,
+      {
+        id: 99,
+        name: "Fence",
+        geofenceRadius: 0,
+        boundingBox: create(Protobuf.Mesh.BoundingBoxSchema, {
+          longitudeWestI: -741982000,
+          latitudeSouthI: 409179000,
+          longitudeEastI: -741980000,
+          latitudeNorthI: 409181000,
+        }),
+      },
+      0,
+      777,
+      new Date("2026-07-03T12:05:00Z"),
+    );
+
+    const waypoint = state.getDevice(13)?.getWaypoint(99);
+    expect(waypoint?.geofenceRadius).toBe(0);
+    expect(waypoint?.boundingBox).toBeDefined();
+  });
+
+  it("returns no geofence after editing a circle waypoint to none", async () => {
+    const { useDeviceStore } = await freshStore(false);
+    const state = useDeviceStore.getState();
+    const device = state.addDevice(14);
+
+    device.addWaypoint(
+      makeWaypoint(100, 0, {
+        name: "Fence",
+        geofenceRadius: 61,
+      }),
+      0,
+      777,
+      new Date("2026-07-03T12:00:00Z"),
+    );
+
+    const editedWaypoint = makeWaypoint(100, 0, {
+      name: "Fence",
+      geofenceRadius: 0,
+      boundingBox: undefined,
+    });
+
+    device.addWaypoint(
+      editedWaypoint,
+      0,
+      777,
+      new Date("2026-07-03T12:05:00Z"),
+    );
+    device.setWaypointDisplayOverride(
+      100,
+      {
+        id: 100,
+        name: "Fence",
+        geofenceRadius: 0,
+        boundingBox: undefined,
+      },
+      0,
+      777,
+      new Date("2026-07-03T12:05:00Z"),
+    );
+
+    const waypoint = state.getDevice(14)?.getWaypoint(100);
+    expect(waypoint?.geofenceRadius).toBe(0);
+    expect(waypoint?.boundingBox).toBeUndefined();
   });
 });
 

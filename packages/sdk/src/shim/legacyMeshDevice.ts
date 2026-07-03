@@ -51,7 +51,7 @@ export class MeshDevice {
     const options: MeshClientOptions =
       typeof configIdOrOptions === "number"
         ? { transport, configId: configIdOrOptions }
-        : { transport, ...(configIdOrOptions ?? {}) };
+        : { transport, ...configIdOrOptions };
     this.client = new MeshClient(options);
     this.meshClient = this.client;
     this.transport = this.client.transport;
@@ -162,7 +162,6 @@ export class MeshDevice {
     destination: Destination,
     channel?: ChannelNumber,
   ): Promise<number> {
-    waypointMessage.id = Math.floor(Math.random() * 1e9);
     return this.client.sendPacket(
       toBinary(Protobuf.Mesh.WaypointSchema, waypointMessage),
       Protobuf.Portnums.PortNum.WAYPOINT_APP,
@@ -243,6 +242,17 @@ export class MeshDevice {
     return sendAdminMessage(
       this.client,
       { case: "removeFixedPosition", value: true },
+      "self",
+      undefined,
+      true,
+      false,
+    );
+  }
+
+  public setTimeOnly(epochSeconds: number): Promise<number> {
+    return sendAdminMessage(
+      this.client,
+      { case: "setTimeOnly", value: Math.floor(epochSeconds) },
       "self",
       undefined,
       true,

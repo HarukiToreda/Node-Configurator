@@ -6,6 +6,9 @@ export type Bounds = [[number, number], [number, number]];
 
 const INT_DEG = 1e7;
 const EARTH_RADIUS = 6378137;
+const FEET_PER_METER = 3.280839895013123;
+const METERS_PER_FOOT = 1 / FEET_PER_METER;
+const METERS_PER_MILE = 1609.344;
 
 export const toLngLat = (position?: {
   latitudeI?: number;
@@ -14,6 +17,11 @@ export const toLngLat = (position?: {
   (position?.longitudeI ?? 0) / INT_DEG,
   (position?.latitudeI ?? 0) / INT_DEG,
 ];
+
+export const toIntDegrees = ([lng, lat]: LngLat) => ({
+  longitudeI: Math.round(lng * INT_DEG),
+  latitudeI: Math.round(lat * INT_DEG),
+});
 
 export const hasPos = (position?: {
   latitudeI?: number;
@@ -52,6 +60,77 @@ export function mercatorToLngLat([x, y]: Mercator): LngLat {
     rad2deg(x / EARTH_RADIUS),
     rad2deg(2 * Math.atan(Math.exp(y / EARTH_RADIUS)) - Math.PI / 2),
   ];
+}
+
+export function boundingBoxFromCenter(
+  center: LngLat,
+  widthMeters: number,
+  heightMeters: number,
+) {
+  const [x, y] = lngLatToMercator(center);
+  const halfWidth = widthMeters / 2;
+  const halfHeight = heightMeters / 2;
+
+  const [west, south] = mercatorToLngLat([x - halfWidth, y - halfHeight]);
+  const [east, north] = mercatorToLngLat([x + halfWidth, y + halfHeight]);
+
+  return {
+    longitudeWestI: Math.round(west * INT_DEG),
+    latitudeSouthI: Math.round(south * INT_DEG),
+    longitudeEastI: Math.round(east * INT_DEG),
+    latitudeNorthI: Math.round(north * INT_DEG),
+  };
+}
+
+export function distanceFromDisplayUnits(
+  value: number,
+  useImperial: boolean,
+): number {
+  return useImperial ? value * METERS_PER_FOOT : value;
+}
+
+export function distanceToDisplayUnits(
+  valueMeters: number,
+  useImperial: boolean,
+): number {
+  return useImperial ? valueMeters * FEET_PER_METER : valueMeters;
+}
+
+export function formatDistanceForDisplay(
+  valueMeters: number,
+  useImperial: boolean,
+): {
+  value: string;
+  unitLabel: "ft" | "mi" | "m" | "km";
+} {
+  if (useImperial) {
+    const feet = distanceToDisplayUnits(valueMeters, true);
+    if (feet >= 5280) {
+      const miles = valueMeters / METERS_PER_MILE;
+      return {
+        value: miles >= 10 ? miles.toFixed(1) : miles.toFixed(2),
+        unitLabel: "mi",
+      };
+    }
+
+    return {
+      value: Math.round(feet).toString(),
+      unitLabel: "ft",
+    };
+  }
+
+  if (valueMeters >= 1000) {
+    const kilometers = valueMeters / 1000;
+    return {
+      value: kilometers >= 10 ? kilometers.toFixed(1) : kilometers.toFixed(2),
+      unitLabel: "km",
+    };
+  }
+
+  return {
+    value: Math.round(valueMeters).toString(),
+    unitLabel: "m",
+  };
 }
 
 export function distanceMeters([lng1, lat1]: LngLat, [lng2, lat2]: LngLat) {

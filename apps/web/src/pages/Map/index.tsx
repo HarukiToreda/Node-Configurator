@@ -1,3 +1,4 @@
+import { create } from "@bufbuild/protobuf";
 import {
   defaultVisibilityState,
   MapLayerTool,
@@ -23,15 +24,17 @@ import {
 } from "@components/PageComponents/Map/Layers/SNRLayer.tsx";
 import { WaypointLayer } from "@components/PageComponents/Map/Layers/WaypointLayer.tsx";
 import type { PopupState } from "@components/PageComponents/Map/Popups/PopupWrapper.tsx";
+import { waypointNeedsReplacement } from "@components/PageComponents/Map/waypointGeofence.ts";
 import { PageLayout } from "@components/PageLayout.tsx";
 import { Sidebar } from "@components/Sidebar.tsx";
 import { Button } from "@components/UI/Button.tsx";
 import { useMapFitting } from "@core/hooks/useMapFitting.ts";
+import { useToast } from "@core/hooks/useToast.ts";
 import {
   useMyNodeAsProto,
   useNodesAsProto,
 } from "@core/hooks/useNodesAsProto.ts";
-import { useDevice } from "@core/stores";
+import { useDevice, type WaypointWithMetadata } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
 import { hasPos, toLngLat } from "@core/utils/geo.ts";
 import { Protobuf } from "@meshtastic/sdk";
@@ -55,6 +58,7 @@ interface ContextMenuState {
 
 const MapPageContent = ({ splitPane = false }: { splitPane?: boolean }) => {
   const { t } = useTranslation(["map", "channels"]);
+  const { toast } = useToast();
   const allNodes = useNodesAsProto();
   const device = useDevice();
   const getNode = useCallback(
@@ -80,7 +84,12 @@ const MapPageContent = ({ splitPane = false }: { splitPane?: boolean }) => {
   const [contextMenuState, setContextMenuState] = useState<
     ContextMenuState | undefined
   >();
-  const [waypointDialogOpen, setWaypointDialogOpen] = useState(false);
+  const [editingWaypoint, setEditingWaypoint] = useState<
+    WaypointWithMetadata | undefined
+  >();
+  const [waypointDialogState, setWaypointDialogState] = useState<
+    ContextMenuState | undefined
+  >();
 
   const [visibilityState, setVisibilityState] = useState<VisibilityState>(
     () => defaultVisibilityState,
@@ -254,9 +263,36 @@ const MapPageContent = ({ splitPane = false }: { splitPane?: boolean }) => {
         isVisible={visibilityState.waypoints}
         popupState={popupState}
         setPopupState={setPopupState}
+        onEditWaypoint={(waypoint) => {
+          const [longitude, latitude] = toLngLat({
+            latitudeI: waypoint.latitudeI,
+            longitudeI: waypoint.longitudeI,
+          });
+          setEditingWaypoint(waypoint);
+          setWaypointDialogState({ latitude, longitude });
+        }}
+        onDeleteWaypoint={async (waypoint) => {
+          if (!globalThis.confirm(t("waypointDetail.deleteConfirm"))) {
+            return;
+          }
+
+          try {
+            await device.removeWaypoint(waypoint.id, true);
+            setPopupState(undefined);
+            toast({
+              title: t("waypointDetail.deleteSuccessTitle"),
+              description: t("waypointDetail.deleteSuccessDescription"),
+            });
+          } catch {
+            toast({
+              title: t("waypointDetail.deleteErrorTitle"),
+              description: t("waypointDetail.deleteErrorDescription"),
+            });
+          }
+        }}
       />
     ),
-    [mapRef, myNode, visibilityState.waypoints, popupState],
+    [device, mapRef, myNode, popupState, t, toast, visibilityState.waypoints],
   );
 
   const waypointChannels = useMemo(() => {
@@ -286,22 +322,112 @@ const MapPageContent = ({ splitPane = false }: { splitPane?: boolean }) => {
   }, [device.channels, t]);
 
   const handleCreateWaypoint = useCallback(
-    async (waypoint: Protobuf.Mesh.Waypoint, channelIndex: number) => {
+    async (
+      waypoint: Protobuf.Mesh.Waypoint,
+      channelIndex: number,
+      localDisplayWaypoint?: Partial<Protobuf.Mesh.Waypoint>,
+    ) => {
       if (!device.connection) {
         throw new Error("No active device connection");
       }
 
-      await device.connection.sendWaypoint(waypoint, "broadcast", channelIndex);
+      void device.connection
+        .sendWaypoint(waypoint, "broadcast", channelIndex)
+        .catch(() => {
+          toast({
+            title: t("waypointDialog.error.title"),
+            description: t("waypointDialog.error.description"),
+          });
+        });
+      const submittedAt = new Date();
       device.addWaypoint(
         waypoint,
         channelIndex,
         myNode?.num ?? device.hardware.myNodeNum ?? 0,
-        new Date(),
+        submittedAt,
+      );
+      device.setWaypointDisplayOverride(
+        waypoint.id,
+        localDisplayWaypoint ?? waypoint,
+        channelIndex,
+        myNode?.num ?? device.hardware.myNodeNum ?? 0,
+        submittedAt,
       );
       setContextMenuState(undefined);
-      setWaypointDialogOpen(false);
+      setWaypointDialogState(undefined);
     },
-    [device, myNode?.num],
+    [device, myNode?.num, t, toast],
+  );
+
+  const handleEditWaypoint = useCallback(
+    async (
+      waypoint: Protobuf.Mesh.Waypoint,
+      channelIndex: number,
+      localDisplayWaypoint?: Partial<Protobuf.Mesh.Waypoint>,
+    ) => {
+      if (!device.connection) {
+        throw new Error("No active device connection");
+      }
+
+      const previousWaypoint = editingWaypoint;
+      const needsReplacement =
+        previousWaypoint &&
+        waypointNeedsReplacement(previousWaypoint, localDisplayWaypoint);
+
+      if (
+        previousWaypoint &&
+        (previousWaypoint.metadata.channel !== channelIndex || needsReplacement)
+      ) {
+        const deleteWaypoint = create(Protobuf.Mesh.WaypointSchema, {
+          id: previousWaypoint.id,
+          lockedTo: 0,
+          name: "",
+          description: "",
+          icon: 0,
+          expire: 1,
+        });
+
+        void device.connection
+          .sendWaypoint(
+            deleteWaypoint,
+            "broadcast",
+            previousWaypoint.metadata.channel,
+          )
+          .catch(() => {
+            toast({
+              title: t("waypointDetail.deleteErrorTitle"),
+              description: t("waypointDetail.deleteErrorDescription"),
+            });
+          });
+      }
+
+      void device.connection
+        .sendWaypoint(waypoint, "broadcast", channelIndex)
+        .catch(() => {
+          toast({
+            title: t("waypointDialog.error.updatedTitle"),
+            description: t("waypointDialog.error.updatedDescription"),
+          });
+        });
+      const submittedAt = new Date();
+      device.addWaypoint(
+        waypoint,
+        channelIndex,
+        myNode?.num ?? device.hardware.myNodeNum ?? 0,
+        submittedAt,
+      );
+      device.setWaypointDisplayOverride(
+        waypoint.id,
+        localDisplayWaypoint ?? waypoint,
+        channelIndex,
+        myNode?.num ?? device.hardware.myNodeNum ?? 0,
+        submittedAt,
+      );
+      setEditingWaypoint(undefined);
+      setWaypointDialogState(undefined);
+      setPopupState({ type: "waypoint", waypointId: waypoint.id });
+    },
+    [device, editingWaypoint, myNode?.num, t, toast],
   );
 
   return (
@@ -344,7 +470,11 @@ const MapPageContent = ({ splitPane = false }: { splitPane?: boolean }) => {
                   size="sm"
                   className="w-full"
                   onClick={() => {
-                    setWaypointDialogOpen(true);
+                    setEditingWaypoint(undefined);
+                    setWaypointDialogState({
+                      latitude: contextMenuState.latitude,
+                      longitude: contextMenuState.longitude,
+                    });
                   }}
                 >
                   {t("mapContextMenu.dropWaypoint")}
@@ -415,20 +545,24 @@ const MapPageContent = ({ splitPane = false }: { splitPane?: boolean }) => {
             setHeatmapMode={setHeatmapMode}
           />
         </div>
-        {contextMenuState && (
+        {waypointDialogState && (
           <WaypointDialog
-            open={waypointDialogOpen}
+            open
             onOpenChange={(open) => {
-              setWaypointDialogOpen(open);
               if (!open) {
+                setEditingWaypoint(undefined);
+                setWaypointDialogState(undefined);
                 setContextMenuState(undefined);
               }
             }}
-            latitude={contextMenuState.latitude}
-            longitude={contextMenuState.longitude}
+            latitude={waypointDialogState.latitude}
+            longitude={waypointDialogState.longitude}
             channels={waypointChannels}
             myNodeNum={myNode?.num ?? device.hardware.myNodeNum}
-            onSubmit={handleCreateWaypoint}
+            initialWaypoint={editingWaypoint}
+            onSubmit={
+              editingWaypoint ? handleEditWaypoint : handleCreateWaypoint
+            }
           />
         )}
       </div>
