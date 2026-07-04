@@ -141,9 +141,12 @@ export const Connections = () => {
       URL.revokeObjectURL(url);
 
       toast({
-        title: t("toasts.presetDownloaded"),
+        title: t("toasts.presetDownloaded", {
+          defaultValue: "Preset downloaded",
+        }),
         description: t("toasts.presetDownloadedByName", {
           name: download.name,
+          defaultValue: "{{name}} is ready to import on Android.",
           interpolation: { escapeValue: false },
         }),
       });
@@ -153,7 +156,9 @@ export const Connections = () => {
         description:
           error instanceof Error
             ? error.message
-            : t("toasts.presetDownloadFailed"),
+            : t("toasts.presetDownloadFailed", {
+                defaultValue: "Could not create the Android preset file.",
+              }),
       });
     }
   };
@@ -270,16 +275,24 @@ export const Connections = () => {
               <AccordionTrigger className="border-b-0 px-6 py-5">
                 <div className="flex items-center gap-2 text-lg font-semibold">
                   <Download className="size-5" />
-                  {t("presetDownload.title")}
+                  {t("presetDownload.title", {
+                    defaultValue: "Android preset downloads",
+                  })}
                 </div>
               </AccordionTrigger>
             </AccordionHeader>
             <AccordionContent className="border-b-0 space-y-4 px-6 pb-6 pt-0">
               <p className="text-slate-500 dark:text-slate-400">
-                {t("presetDownload.description")}
+                {t("presetDownload.description", {
+                  defaultValue:
+                    "Download Haru Client presets in the same DeviceProfile format the Android app imports from its Import Configuration flow.",
+                })}
               </p>
               <p className="text-sm text-amber-600 dark:text-amber-300">
-                {t("presetDownload.limitations")}
+                {t("presetDownload.limitations", {
+                  defaultValue:
+                    "Channel URL and canned messages still need to be set inside the Android app.",
+                })}
               </p>
               <div className="space-y-3">
                 {presetCatalog.map((preset) => (
@@ -299,7 +312,9 @@ export const Connections = () => {
                         className="gap-2 md:self-center"
                       >
                         <Download className="size-4" />
-                        {t("button.downloadAndroidPreset")}
+                        {t("button.downloadAndroidPreset", {
+                          defaultValue: "Download for Android",
+                        })}
                       </Button>
                     </div>
                   </div>
