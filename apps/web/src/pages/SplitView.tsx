@@ -12,8 +12,9 @@ import { X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 
+type SplitMessageHref = `/messages/${"direct" | "broadcast"}/${string}`;
 type SplitViewHref =
-  | "/messages/broadcast/0"
+  | SplitMessageHref
   | "/map"
   | "/nodes"
   | "/waypoints"
@@ -28,7 +29,7 @@ interface SplitPaneDefinition {
 }
 
 const splitPaneDefinitions: SplitPaneDefinition[] = [
-  { href: "/messages/broadcast/0", label: "Messages" },
+  { href: "/messages/direct/0", label: "Direct Messages" },
   { href: "/map", label: "Map" },
   { href: "/nodes", label: "Nodes" },
   { href: "/waypoints", label: "Waypoints" },
@@ -38,10 +39,16 @@ const splitPaneDefinitions: SplitPaneDefinition[] = [
   { href: "/logs", label: "Serial Logs" },
 ];
 
+const isMessagePaneHref = (href: string): href is SplitMessageHref =>
+  href.startsWith("/messages/direct/") ||
+  href.startsWith("/messages/broadcast/");
+
 const renderPane = (href: SplitViewHref): ReactNode => {
+  if (isMessagePaneHref(href)) {
+    return <SplitMessagesPage initialHref={href} />;
+  }
+
   switch (href) {
-    case "/messages/broadcast/0":
-      return <SplitMessagesPage />;
     case "/map":
       return <SplitMapPage />;
     case "/nodes":
@@ -145,6 +152,7 @@ const SplitViewPage = () => {
     const nextHref = href as SplitViewHref;
 
     if (
+      !isMessagePaneHref(nextHref) &&
       !splitPaneDefinitions.some((definition) => definition.href === nextHref)
     ) {
       return;

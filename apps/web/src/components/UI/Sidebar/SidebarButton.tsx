@@ -36,15 +36,15 @@ export const SidebarButton = ({
       variant={active ? "subtle" : "ghost"}
       size="sm"
       className={cn(
-        "flex w-full items-center text-wrap",
+        "flex w-full items-center text-wrap text-[13px]",
         isButtonCollapsed
-          ? "justify-center gap-0 px-2 h-9"
-          : "justify-start gap-2 min-h-9",
+          ? "justify-center gap-0 px-1.5 h-8"
+          : "justify-start gap-1.5 min-h-8 px-2 py-1",
       )}
       disabled={disabled}
     >
       {Icon && (
-        <Icon size={isButtonCollapsed ? 20 : 18} className="flex-shrink-0" />
+        <Icon size={isButtonCollapsed ? 18 : 16} className="flex-shrink-0" />
       )}
 
       {children}
@@ -53,7 +53,7 @@ export const SidebarButton = ({
         className={cn(
           "flex flex-wrap justify-start text-left text-balance break-all",
           "min-w-0",
-          "px-1",
+          "px-0.5 leading-4",
           "transition-all duration-300 ease-in-out",
           isButtonCollapsed
             ? "opacity-0 max-w-0 invisible w-0 overflow-hidden"
@@ -66,7 +66,7 @@ export const SidebarButton = ({
       {!isButtonCollapsed && ((!active && count && count > 0) || isDirty) && (
         <div
           className={cn(
-            "ml-auto flex-shrink-0 justify-end text-white text-xs rounded-full px-1.5 py-0.5",
+            "ml-auto flex-shrink-0 justify-end text-white text-[10px] rounded-full px-1.5 py-0.5 leading-none",
             "flex-shrink-0",
             "transition-opacity duration-300 ease-in-out",
             isButtonCollapsed ? "opacity-0 invisible" : "opacity-100 visible",

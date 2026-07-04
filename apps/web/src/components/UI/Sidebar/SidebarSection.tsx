@@ -16,12 +16,12 @@ export const SidebarSection = ({
 }: SidebarSectionProps) => {
   const { isCollapsed } = useSidebar();
   return (
-    <div className={cn("py-2", isCollapsed ? "px-0" : "px-4", className)}>
+    <div className={cn("py-1", isCollapsed ? "px-0" : "px-3", className)}>
       <Heading
         as="h3"
         className={cn(
-          "mb-2",
-          "capitalize tracking-wider text-sm",
+          "mb-1",
+          "capitalize tracking-[0.08em] text-xs font-semibold",
           "transition-all duration-300 ease-in-out",
           "whitespace-nowrap overflow-hidden",
           isCollapsed
@@ -32,7 +32,7 @@ export const SidebarSection = ({
         {label}
       </Heading>
 
-      <div className="space-y-1">{children}</div>
+      <div className="space-y-0.5">{children}</div>
     </div>
   );
 };

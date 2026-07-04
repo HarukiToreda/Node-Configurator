@@ -1,6 +1,6 @@
 import { useFirstSavedConnection } from "@app/core/stores/deviceStore/selectors.ts";
 import { PresetDialog } from "@components/Dialog/PresetDialog.tsx";
-import { useConfigEditor, useSignal } from "@meshtastic/sdk-react";
+import { getChannelName } from "@components/PageComponents/Channels/Channels.tsx";
 import { SidebarButton } from "@components/UI/Sidebar/SidebarButton.tsx";
 import { SidebarSection } from "@components/UI/Sidebar/SidebarSection.tsx";
 import { Spinner } from "@components/UI/Spinner.tsx";
@@ -21,10 +21,18 @@ import {
   useSidebar,
 } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
-import { useTotalUnread } from "@meshtastic/sdk-react";
+import { Protobuf, Types } from "@meshtastic/sdk";
+import {
+  useActiveClient,
+  useChannels,
+  useConfigEditor,
+  useSignal,
+  useUnreadByKey,
+} from "@meshtastic/sdk-react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import {
   CircleChevronLeft,
+  HashIcon,
   LayersIcon,
   type LucideIcon,
   MapIcon,
@@ -37,7 +45,13 @@ import {
   UsersIcon,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { DeviceInfoPanel } from "./DeviceInfoPanel.tsx";
 
@@ -81,7 +95,7 @@ const CollapseToggleButton = () => {
       aria-label={buttonLabel}
       onClick={toggleSidebar}
       className={cn(
-        "absolute top-20 right-0 z-10 p-0.5 rounded-full transform translate-x-1/2",
+        "absolute top-12 right-0 z-30 p-0.5 rounded-full transform translate-x-1/2 -translate-y-1/2",
         "transition-colors duration-300 ease-in-out",
         "border border-slate-300 dark:border-slate-200",
         "text-slate-500 dark:text-slate-200 hover:text-slate-400 dark:hover:text-slate-400",
@@ -117,6 +131,9 @@ export const Sidebar = ({
   const waypointCount = useDeviceStore(
     (state) => state.getDevice(deviceId)?.waypoints.length ?? 0,
   );
+  const channels = useChannels();
+  const unreadByKey = useUnreadByKey();
+  const meshClient = useActiveClient();
   const editor = useConfigEditor();
   const dirtyRadio = useSignal(
     editor?.dirtyRadioSections ?? EMPTY_DIRTY_STRING_SIGNAL,
@@ -127,7 +144,6 @@ export const Sidebar = ({
   const dirtyChannels = useSignal(
     editor?.dirtyChannels ?? EMPTY_DIRTY_NUMBER_SIGNAL,
   );
-  const numUnread = useTotalUnread();
   const allNodes = useNodesAsProto();
   const { setCommandPaletteOpen } = useAppStore();
   const myNode = useMyNodeAsProto();
@@ -159,6 +175,24 @@ export const Sidebar = ({
   const [_, startNodeCountTransition] = useTransition();
 
   const currentNodeCountValue = Math.max(getNodesLength() - 1, 0);
+  const filteredChannels = useMemo(
+    () =>
+      channels.filter(
+        (channel) => channel.role !== Protobuf.Channel.Channel_Role.DISABLED,
+      ),
+    [channels],
+  );
+  const directUnreadTotal = useMemo(
+    () =>
+      Array.from(unreadByKey.entries()).reduce((total, [key, count]) => {
+        return key.startsWith("direct:") ? total + count : total;
+      }, 0),
+    [unreadByKey],
+  );
+  const getChannelUnread = useCallback(
+    (channelIndex: number) => unreadByKey.get(`channel:${channelIndex}`) ?? 0,
+    [unreadByKey],
+  );
 
   useEffect(() => {
     if (currentNodeCountValue !== displayedNodeCount) {
@@ -170,10 +204,12 @@ export const Sidebar = ({
 
   const pages: NavLink[] = [
     {
-      name: t("ui:navigation.messages"),
+      name: t("ui:navigation.directMessages", {
+        defaultValue: "Direct Messages",
+      }),
       icon: MessageSquareIcon,
-      href: "/messages/broadcast/0",
-      count: numUnread ? numUnread : undefined,
+      href: "/messages/direct/0",
+      count: directUnreadTotal ? directUnreadTotal : undefined,
     },
     {
       name: t("ui:navigation.map"),
@@ -221,18 +257,21 @@ export const Sidebar = ({
     pathname === href.replace(/^\//, "") ||
     pathname.startsWith(`${href.replace(/^\//, "")}/`);
 
-  const triggerNavigation = (href: string) => {
-    if (myNode === undefined) {
-      return;
-    }
+  const triggerNavigation = useCallback(
+    (href: string) => {
+      if (myNode === undefined) {
+        return;
+      }
 
-    if (navigationMode === "split" && onNavigateOverride) {
-      onNavigateOverride(href);
-      return;
-    }
+      if (navigationMode === "split" && onNavigateOverride) {
+        onNavigateOverride(href);
+        return;
+      }
 
-    navigate({ to: href });
-  };
+      navigate({ to: href });
+    },
+    [myNode, navigate, navigationMode, onNavigateOverride],
+  );
 
   const isLinkActive = (href: string) => {
     if (navigationMode === "split" && isOverrideActive) {
@@ -278,6 +317,17 @@ export const Sidebar = ({
     }
   };
 
+  const handleOpenChannel = useCallback(
+    (channelIndex: number) => {
+      meshClient?.chat.unread.markRead({
+        kind: "channel",
+        channel: channelIndex as Types.ChannelNumber,
+      });
+      triggerNavigation(`/messages/broadcast/${channelIndex}`);
+    },
+    [meshClient, triggerNavigation],
+  );
+
   if (embedded) {
     return (
       <>
@@ -296,7 +346,7 @@ export const Sidebar = ({
   return (
     <div
       className={cn(
-        "relative border-slate-300 dark:border-slate-700",
+        "relative flex h-full min-h-0 flex-col overflow-visible border-slate-300 dark:border-slate-700",
         "transition-all duration-300 ease-in-out flex-shrink-0",
         isCollapsed ? "w-24" : "w-52 lg:w-64",
       )}
@@ -305,14 +355,14 @@ export const Sidebar = ({
 
       <div
         className={cn(
-          "h-14 flex mt-2 items-center flex-shrink-0 transition-all duration-300 ease-in-out",
+          "h-12 flex items-center flex-shrink-0 transition-all duration-300 ease-in-out",
           "border-b-[0.5px] border-slate-300 dark:border-slate-700",
           isCollapsed ? "justify-center px-0" : "px-3",
         )}
       >
         <h2
           className={cn(
-            "text-xl font-semibold text-gray-800 dark:text-gray-100 whitespace-nowrap",
+            "text-lg font-semibold text-gray-800 dark:text-gray-100 whitespace-nowrap",
             "transition-all duration-300 ease-in-out",
             isCollapsed
               ? "opacity-0 max-w-0 invisible"
@@ -323,106 +373,152 @@ export const Sidebar = ({
         </h2>
       </div>
 
-      <SidebarSection label={t("ui:navigation.title")} className="mt-4 px-0">
-        {pages.map((link) => {
-          return (
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <div className={cn("pb-2", isCollapsed ? "px-0" : "px-0")}>
+          <SidebarSection
+            label={t("ui:navigation.channels")}
+            className="mt-2 px-0"
+          >
+            {filteredChannels.map((channel) => (
+              <SidebarButton
+                key={channel.index}
+                count={getChannelUnread(channel.index)}
+                label={getChannelName(channel)}
+                onClick={() => handleOpenChannel(channel.index)}
+                active={isLinkActive(`/messages/broadcast/${channel.index}`)}
+                disabled={myNode === undefined}
+              >
+                <span
+                  className={cn(
+                    "flex items-center flex-shrink-0",
+                    isCollapsed
+                      ? "gap-0.5 text-[10px] font-semibold leading-none"
+                      : "",
+                  )}
+                >
+                  <HashIcon
+                    size={isCollapsed ? 12 : 14}
+                    className="flex-shrink-0"
+                  />
+                  {isCollapsed ? <span>{channel.index}</span> : null}
+                </span>
+              </SidebarButton>
+            ))}
+          </SidebarSection>
+
+          <SidebarSection
+            label={t("ui:navigation.title")}
+            className="mt-2 px-0"
+          >
+            {pages.map((link) => {
+              return (
+                <SidebarButton
+                  key={link.name}
+                  count={link.count}
+                  label={link.name}
+                  Icon={link.icon}
+                  onClick={() => triggerNavigation(link.href)}
+                  active={isLinkActive(link.href)}
+                  disabled={myNode === undefined}
+                />
+              );
+            })}
+          </SidebarSection>
+
+          <SidebarSection
+            label={t("config:sidebar.label")}
+            className="mt-2 px-0"
+          >
             <SidebarButton
-              key={link.name}
-              count={link.count}
-              label={link.name}
-              Icon={link.icon}
-              onClick={() => triggerNavigation(link.href)}
-              active={isLinkActive(link.href)}
+              label="Presets"
+              Icon={SparklesIcon}
+              onClick={() => {
+                if (myNode !== undefined) {
+                  setPresetDialogOpen(true);
+                }
+              }}
               disabled={myNode === undefined}
             />
-          );
-        })}
-      </SidebarSection>
+            {configLinks.map((link) => (
+              <SidebarButton
+                key={link.name}
+                count={link.count}
+                label={link.name}
+                Icon={link.icon}
+                onClick={() => triggerNavigation(link.href)}
+                active={isLinkActive(link.href)}
+                disabled={myNode === undefined}
+              />
+            ))}
+          </SidebarSection>
 
-      <SidebarSection label={t("config:sidebar.label")} className="mt-4 px-0">
-        <SidebarButton
-          label="Presets"
-          Icon={SparklesIcon}
-          onClick={() => {
-            if (myNode !== undefined) {
-              setPresetDialogOpen(true);
-            }
-          }}
-          disabled={myNode === undefined}
-        />
-        {configLinks.map((link) => (
-          <SidebarButton
-            key={link.name}
-            count={link.count}
-            label={link.name}
-            Icon={link.icon}
-            onClick={() => triggerNavigation(link.href)}
-            active={isLinkActive(link.href)}
-            disabled={myNode === undefined}
-          />
-        ))}
-      </SidebarSection>
+          <SidebarSection label={t("ui:tools.title")} className="mt-2 px-0">
+            {navigationMode !== "split" && (
+              <SidebarButton
+                label="Split View"
+                Icon={LayersIcon}
+                onClick={() => {
+                  if (myNode !== undefined) {
+                    navigate({ to: "/split" });
+                  }
+                }}
+                active={isActivePath("/split")}
+                disabled={myNode === undefined}
+              />
+            )}
+            <SidebarButton
+              label={t("ui:serialLogs.button")}
+              Icon={SquareTerminal}
+              onClick={() => triggerNavigation("/logs")}
+              active={isLinkActive("/logs")}
+              disabled={myNode === undefined}
+            />
+          </SidebarSection>
 
-      <SidebarSection label={t("ui:tools.title")} className="mt-4 px-0">
-        {navigationMode !== "split" && (
-          <SidebarButton
-            label="Split View"
-            Icon={LayersIcon}
-            onClick={() => {
-              if (myNode !== undefined) {
-                navigate({ to: "/split" });
-              }
-            }}
-            active={isActivePath("/split")}
-            disabled={myNode === undefined}
-          />
-        )}
-        <SidebarButton
-          label={t("ui:serialLogs.button")}
-          Icon={SquareTerminal}
-          onClick={() => triggerNavigation("/logs")}
-          active={isLinkActive("/logs")}
-          disabled={myNode === undefined}
-        />
-      </SidebarSection>
-
-      <div className={cn("flex-1 min-h-0", isCollapsed && "overflow-hidden")}>
-        {children}
+          <div
+            className={cn(
+              "mt-2 border-t-[0.5px] bg-background-primary border-slate-300 dark:border-slate-700",
+              isCollapsed ? "px-0 pt-2" : "px-3 pt-2",
+            )}
+          >
+            {myNode === undefined ? (
+              <div className="flex flex-col items-center justify-center py-4">
+                <Spinner />
+                <Subtle
+                  className={cn(
+                    "mt-3 transition-opacity duration-300 text-xs",
+                    isCollapsed ? "opacity-0 invisible" : "opacity-100 visible",
+                  )}
+                >
+                  {t("loading")}
+                </Subtle>
+              </div>
+            ) : (
+              <DeviceInfoPanel
+                isCollapsed={isCollapsed}
+                setCommandPaletteOpen={() => setCommandPaletteOpen(true)}
+                setDialogOpen={() => setDialogOpen("deviceName", true)}
+                user={myNode.user}
+                firmwareVersion={
+                  myMetadata?.firmwareVersion ?? t("unknown.notAvailable")
+                }
+                deviceMetrics={{
+                  batteryLevel: myNode.deviceMetrics?.batteryLevel,
+                  voltage:
+                    typeof myNode.deviceMetrics?.voltage === "number"
+                      ? Math.abs(myNode.deviceMetrics?.voltage)
+                      : undefined,
+                }}
+                connectionStatus={activeConnection?.status}
+                connectionName={activeConnection?.name}
+              />
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className=" pt-4 border-t-[0.5px] bg-background-primary border-slate-300 dark:border-slate-700 h-full flex-1">
-        {myNode === undefined ? (
-          <div className="flex flex-col items-center justify-center py-6">
-            <Spinner />
-            <Subtle
-              className={cn(
-                "mt-4 transition-opacity duration-300",
-                isCollapsed ? "opacity-0 invisible" : "opacity-100 visible",
-              )}
-            >
-              {t("loading")}
-            </Subtle>
-          </div>
-        ) : (
-          <DeviceInfoPanel
-            isCollapsed={isCollapsed}
-            setCommandPaletteOpen={() => setCommandPaletteOpen(true)}
-            setDialogOpen={() => setDialogOpen("deviceName", true)}
-            user={myNode.user}
-            firmwareVersion={
-              myMetadata?.firmwareVersion ?? t("unknown.notAvailable")
-            }
-            deviceMetrics={{
-              batteryLevel: myNode.deviceMetrics?.batteryLevel,
-              voltage:
-                typeof myNode.deviceMetrics?.voltage === "number"
-                  ? Math.abs(myNode.deviceMetrics?.voltage)
-                  : undefined,
-            }}
-            connectionStatus={activeConnection?.status}
-            connectionName={activeConnection?.name}
-          />
-        )}
+      <div className={cn("min-h-0", isCollapsed && "overflow-hidden hidden")}>
+        {children}
       </div>
       <PresetDialog
         open={presetDialogOpen}

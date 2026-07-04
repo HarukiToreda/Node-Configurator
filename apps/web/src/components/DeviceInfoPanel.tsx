@@ -146,7 +146,7 @@ export const DeviceInfoPanel = ({
       {user && (
         <div
           className={cn(
-            "flex items-center gap-3 p-1 flex-shrink-0",
+            "flex items-center gap-2 p-1 flex-shrink-0",
             isCollapsed && "justify-center",
           )}
         >
@@ -158,7 +158,7 @@ export const DeviceInfoPanel = ({
           {!isCollapsed && (
             <p
               className={cn(
-                "text-sm font-medium text-gray-800 dark:text-gray-200",
+                "text-[13px] font-medium text-gray-800 dark:text-gray-200",
                 "transition-opacity duration-300 ease-in-out truncate",
               )}
             >
@@ -174,7 +174,7 @@ export const DeviceInfoPanel = ({
           onClick={() => navigate({ to: "/connections" })}
           aria-label={t("navigation.manageConnections", "Manage connections")}
           className={cn(
-            "group flex items-center gap-2 px-1 py-2 flex-shrink-0 rounded-md w-full",
+            "group flex items-center gap-2 px-1 py-1.5 flex-shrink-0 rounded-md w-full",
             "transition-colors duration-150",
             "hover:bg-gray-100 dark:hover:bg-gray-700",
             "focus:outline-none focus:ring-2 focus:ring-accent",
@@ -191,10 +191,10 @@ export const DeviceInfoPanel = ({
           {!isCollapsed && (
             <>
               <div className="flex flex-col min-w-0 flex-1 text-left">
-                <Subtle className="text-xs truncate transition-colors duration-150 group-hover:text-gray-800 dark:group-hover:text-gray-100">
+                <Subtle className="text-[11px] truncate transition-colors duration-150 group-hover:text-gray-800 dark:group-hover:text-gray-100">
                   {connectionName || "Connection"}
                 </Subtle>
-                <Subtle className="text-xs capitalize text-gray-500 dark:text-gray-400 transition-colors duration-150">
+                <Subtle className="text-[11px] capitalize text-gray-500 dark:text-gray-400 transition-colors duration-150">
                   {getStatusLabel(connectionStatus)}
                 </Subtle>
               </div>
@@ -208,12 +208,12 @@ export const DeviceInfoPanel = ({
       )}
 
       {!isCollapsed && (
-        <div className="my-2 h-px bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
+        <div className="my-1.5 h-px bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
       )}
 
       <div
         className={cn(
-          "flex flex-col gap-2 mt-1",
+          "flex flex-col gap-1.5 mt-0.5",
           "transition-all duration-300 ease-in-out",
           isCollapsed
             ? "opacity-0 max-w-0 h-0 invisible pointer-events-none"
@@ -223,11 +223,14 @@ export const DeviceInfoPanel = ({
         {deviceInfoItems.map((item) => {
           const IconComponent = item.icon;
           return (
-            <div key={item.id} className="flex items-center gap-2.5 text-sm">
+            <div
+              key={item.id}
+              className="flex items-center gap-2 text-[13px] leading-4"
+            >
               {IconComponent && (
                 <IconComponent
-                  size={16}
-                  className="text-gray-500 dark:text-gray-400 w-4 flex-shrink-0"
+                  size={14}
+                  className="text-gray-500 dark:text-gray-400 w-3.5 flex-shrink-0"
                 />
               )}
               {item.customComponent}
@@ -242,12 +245,12 @@ export const DeviceInfoPanel = ({
       </div>
 
       {!isCollapsed && (
-        <div className="my-2 h-px bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
+        <div className="my-1.5 h-px bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
       )}
 
       <div
         className={cn(
-          "flex flex-col gap-1 mt-1",
+          "flex flex-col gap-0.5 mt-0.5",
           "transition-all duration-300 ease-in-out",
           isCollapsed
             ? "opacity-0 max-w-0 h-0 invisible pointer-events-none"
@@ -269,8 +272,8 @@ export const DeviceInfoPanel = ({
               onClick={buttonItem.onClick}
               className={cn(
                 "group",
-                "flex w-full items-center justify-start text-sm p-1.5 rounded-md",
-                "gap-2.5",
+                "flex w-full items-center justify-start text-[13px] p-1 rounded-md",
+                "gap-2",
                 "transition-colors duration-150",
                 !disableHover && "hover:bg-gray-100 dark:hover:bg-gray-700",
               )}
@@ -287,7 +290,7 @@ export const DeviceInfoPanel = ({
               />
               <Subtle
                 className={cn(
-                  "text-sm",
+                  "text-[13px] leading-4",
                   "text-gray-600 dark:text-gray-300",
                   "transition-colors duration-150",
                   !disableHover &&

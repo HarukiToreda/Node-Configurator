@@ -21,21 +21,21 @@ export interface DataRow {
 export interface TableProps {
   headings: Heading[];
   rows: DataRow[];
+  compact?: boolean;
+  initialSortColumn?: string | null;
+  showColumnDividers?: boolean;
 }
 
-function numericHops(hopsAway: string | number): number {
-  if (typeof hopsAway === "number") {
-    return hopsAway;
-  }
-  if (hopsAway.match(/direct/i)) {
-    return 0;
-  }
-  const match = hopsAway.match(/(\d+)\s+hop/i);
-  return Number(match?.[1] ?? Number.MAX_SAFE_INTEGER);
-}
-
-export const Table = ({ headings, rows }: TableProps) => {
-  const [sortColumn, setSortColumn] = useState<string | null>("Last Heard");
+export const Table = ({
+  headings,
+  rows,
+  compact = false,
+  initialSortColumn = "Last Heard",
+  showColumnDividers = false,
+}: TableProps) => {
+  const [sortColumn, setSortColumn] = useState<string | null>(
+    initialSortColumn,
+  );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const handleSort = (title: string) => {
@@ -66,16 +66,8 @@ export const Table = ({ headings, rows }: TableProps) => {
       const bCell = b.cells[columnIndex];
       if (!aCell || !bCell) return 0;
 
-      let aValue: string | number;
-      let bValue: string | number;
-
-      if (sortColumn === "Connection") {
-        aValue = numericHops(aCell.sortValue);
-        bValue = numericHops(bCell.sortValue);
-      } else {
-        aValue = aCell.sortValue;
-        bValue = bCell.sortValue;
-      }
+      const aValue = aCell.sortValue;
+      const bValue = bCell.sortValue;
 
       if (aValue < bValue) {
         return sortOrder === "asc" ? -1 : 1;
@@ -88,15 +80,21 @@ export const Table = ({ headings, rows }: TableProps) => {
   }, [rows, sortColumn, sortOrder, headings]);
 
   return (
-    <table className="min-w-full" style={{ contentVisibility: "auto" }}>
+    <table
+      className="min-w-full border-separate border-spacing-0"
+      style={{ contentVisibility: "auto" }}
+    >
       <thead className="text-xs font-semibold">
         <tr>
-          {headings.map((heading) => (
+          {headings.map((heading, headingIndex) => (
             <th
               key={heading.title}
               scope="col"
               className={cn(
-                "py-2 pr-3 text-left",
+                compact ? "px-2 py-1.5 text-left" : "py-2 pr-3 text-left",
+                showColumnDividers &&
+                  headingIndex < headings.length - 1 &&
+                  "border-r border-slate-300/70 dark:border-slate-700/80",
                 heading.sortable &&
                   "cursor-pointer hover:brightness-hover active:brightness-press",
               )}
@@ -142,18 +140,23 @@ export const Table = ({ headings, rows }: TableProps) => {
             {row.cells.map((cell, cellIndex) => {
               const key = `${row.id}_${cellIndex}`;
               const isFirstCell = cellIndex === 0;
+              const sharedCellClassName = cn(
+                "whitespace-nowrap text-text-secondary",
+                compact ? "px-2 py-1.5 text-[13px]" : "px-3 py-2 text-sm",
+                showColumnDividers &&
+                  cellIndex < row.cells.length - 1 &&
+                  "border-r border-slate-300/60 dark:border-slate-700/70",
+              );
 
               const cellElement = isFirstCell ? (
                 <th
-                  className="whitespace-nowrap px-3 py-2 text-sm text-left text-text-secondary"
+                  className={cn(sharedCellClassName, "text-left")}
                   scope="row"
                 >
                   {cell.content}
                 </th>
               ) : (
-                <td className="whitespace-nowrap px-3 py-2 text-sm text-text-secondary">
-                  {cell.content}
-                </td>
+                <td className={sharedCellClassName}>{cell.content}</td>
               );
 
               return React.cloneElement(cellElement, { key });

@@ -10,7 +10,7 @@ import { SidebarSection } from "@components/UI/Sidebar/SidebarSection.tsx";
 import { useChatAsLegacyMessages } from "@core/hooks/useChatAsLegacyMessages.ts";
 import { useNodesAsProto } from "@core/hooks/useNodesAsProto.ts";
 import { useToast } from "@core/hooks/useToast.ts";
-import { MessageType, useSidebar } from "@core/stores";
+import { MessageType } from "@core/stores";
 import { cn } from "@core/utils/cn.ts";
 import { Protobuf, Types } from "@meshtastic/sdk";
 import {
@@ -20,7 +20,7 @@ import {
   useUnreadByKey,
 } from "@meshtastic/sdk-react";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { HashIcon, LockIcon, LockOpenIcon } from "lucide-react";
+import { LockIcon, LockOpenIcon } from "lucide-react";
 import {
   useCallback,
   useDeferredValue,
@@ -33,6 +33,16 @@ import { getChannelName } from "../components/PageComponents/Channels/Channels.t
 
 type NodeInfoWithUnread = Protobuf.Mesh.NodeInfo & { unreadCount: number };
 type RoutedMessageType = "direct" | "broadcast";
+type SplitMessageHref = `/messages/${RoutedMessageType}/${string}`;
+
+const parseMessageHref = (href: SplitMessageHref) => {
+  const [, , type, chatId] = href.split("/");
+
+  return {
+    type: type === "direct" ? MessageType.Direct : MessageType.Broadcast,
+    chatId: Number(chatId ?? "0"),
+  };
+};
 
 function SelectMessageChat() {
   const { t } = useTranslation("messages");
@@ -59,16 +69,6 @@ const MessagesPageContent = ({
   const meshClient = useActiveClient();
   const directUnread = (peer: number): number =>
     unreadByKey.get(`direct:${peer}`) ?? 0;
-  const channelUnread = (idx: number): number =>
-    unreadByKey.get(`channel:${idx}`) ?? 0;
-  const markChannelRead = useCallback(
-    (idx: number) =>
-      meshClient?.chat.unread.markRead({
-        kind: "channel",
-        channel: idx as Types.ChannelNumber,
-      }),
-    [meshClient],
-  );
   const markDirectRead = useCallback(
     (peer: number) =>
       meshClient?.chat.unread.markRead({ kind: "direct", peer }),
@@ -84,7 +84,6 @@ const MessagesPageContent = ({
   );
 
   const { toast } = useToast();
-  const { isCollapsed } = useSidebar();
   const [searchTerm, setSearchTerm] = useState<string>("");
   const { t } = useTranslation(["messages", "channels", "ui"]);
   const deferredSearch = useDeferredValue(searchTerm);
@@ -184,45 +183,6 @@ const MessagesPageContent = ({
     }
   };
 
-  const leftSidebarContent = (
-    <SidebarSection label={t("navigation.channels")} className="py-2 px-0">
-      {filteredChannels?.map((channel) => (
-        <SidebarButton
-          key={channel.index}
-          count={channelUnread(channel.index)}
-          label={
-            channel.settings?.name ||
-            (channel.index === 0
-              ? t("page.broadcastLabel", { ns: "channels" })
-              : t("page.channelLabel", {
-                  index: channel.index,
-                  ns: "channels",
-                }))
-          }
-          active={
-            numericChatId === channel.index &&
-            chatType === MessageType.Broadcast
-          }
-          onClick={() => {
-            onNavigateToChat(MessageType.Broadcast, channel.index.toString());
-            markChannelRead(channel.index);
-          }}
-        >
-          <HashIcon
-            size={16}
-            className={cn(isCollapsed ? "mr-0 mt-2" : "mr-2")}
-          />
-        </SidebarButton>
-      ))}
-    </SidebarSection>
-  );
-
-  const leftSidebar = splitPane ? (
-    <Sidebar embedded>{leftSidebarContent}</Sidebar>
-  ) : (
-    <Sidebar>{leftSidebarContent}</Sidebar>
-  );
-
   const rightSidebar = (
     <SidebarSection
       label=""
@@ -288,7 +248,7 @@ const MessagesPageContent = ({
       `
       }
       rightBar={rightSidebar}
-      leftBar={leftSidebar}
+      leftBar={splitPane ? undefined : <Sidebar />}
       hideFooter={splitPane}
       actions={
         isDirect && otherNode
@@ -360,14 +320,18 @@ const RoutedMessagesPage = () => {
   );
 };
 
-export const SplitMessagesPage = () => {
-  const [selection, setSelection] = useState<{
-    type: MessageType;
-    chatId: number;
-  }>({
-    type: MessageType.Broadcast,
-    chatId: 0,
-  });
+export const SplitMessagesPage = ({
+  initialHref = "/messages/direct/0",
+}: {
+  initialHref?: SplitMessageHref;
+}) => {
+  const [selection, setSelection] = useState(() =>
+    parseMessageHref(initialHref),
+  );
+
+  useEffect(() => {
+    setSelection(parseMessageHref(initialHref));
+  }, [initialHref]);
 
   const handleNavigateToChat = useCallback(
     (nextType: MessageType, id: string) => {

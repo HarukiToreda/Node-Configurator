@@ -33,6 +33,7 @@ import { cn } from "@core/utils/cn.ts";
 import { Protobuf } from "@meshtastic/sdk";
 import { numberToHexUnpadded } from "@noble/curves/utils.js";
 import { useNavigate } from "@tanstack/react-router";
+import { base16 } from "rfc4648";
 import { fromByteArray } from "base64-js";
 import {
   BellIcon,
@@ -64,6 +65,11 @@ export const NodeDetailsDialog = ({
   const { updateIgnored } = useIgnoreNode();
 
   const node = useNodeAsProto(nodeNumDetails);
+  const macAddress =
+    base16
+      .stringify(node?.user?.macaddr ?? [])
+      .match(/.{1,2}/g)
+      ?.join(":") ?? t("unknown.longName");
 
   const [isFavoriteState, setIsFavoriteState] = useState<boolean>(
     node?.isFavorite ?? false,
@@ -169,6 +175,12 @@ export const NodeDetailsDialog = ({
   }
 
   const deviceMetricsMap = [
+    {
+      key: "snr",
+      label: t("nodeDetails.snr"),
+      value: node.snr,
+      format: (val: number) => `${val.toFixed(1)} dB`,
+    },
     {
       key: "airUtilTx",
       label: t("nodeDetails.airTxUtilization"),
@@ -346,6 +358,10 @@ export const NodeDetailsDialog = ({
                         </td>
                       </tr>
                       <tr>
+                        <td>{t("nodeDetails.macAddress")}</td>
+                        <td>{macAddress}</td>
+                      </tr>
+                      <tr>
                         <td>{t("nodeDetails.messageable")}</td>
                         <td>
                           {node.user?.isUnmessagable ? t("no") : t("yes")}
@@ -459,7 +475,7 @@ export const NodeDetailsDialog = ({
                             <td>{metric.format(metric?.value ?? 0)}</td>
                           </tr>
                         ))}
-                      {node.deviceMetrics.uptimeSeconds && (
+                      {node.deviceMetrics.uptimeSeconds !== undefined && (
                         <tr>
                           <td>{t("nodeDetails.uptime")}</td>
                           <td>

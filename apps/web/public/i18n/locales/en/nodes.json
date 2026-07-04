@@ -38,8 +38,10 @@
   "nodesTable": {
     "headings": {
       "longName": "Long Name",
+      "battery": "Bat",
       "connection": "Connection",
-      "lastHeard": "Last Heard",
+      "hops": "Hops",
+      "lastHeard": "Heard",
       "encryption": "Encryption",
       "model": "Model",
       "macAddress": "MAC Address"

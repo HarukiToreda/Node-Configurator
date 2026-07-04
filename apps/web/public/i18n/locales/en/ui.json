@@ -2,6 +2,7 @@
   "navigation": {
     "title": "Navigation",
     "messages": "Messages",
+    "directMessages": "Direct Messages",
     "map": "Map",
     "settings": "Settings",
     "channels": "Channels",

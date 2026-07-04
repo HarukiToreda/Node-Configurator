@@ -32,7 +32,6 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { base16 } from "rfc4648";
 
 export interface DeleteNoteDialogProps {
   open: boolean;
@@ -44,7 +43,7 @@ const NodesPageContent = ({
 }: {
   splitPane?: boolean;
 }): JSX.Element => {
-  const { t } = useTranslation("nodes");
+  const { t } = useTranslation(["nodes", "ui"]);
   const { current } = useLang();
   const { hardware, connection, setDialogOpen } = useDevice();
 
@@ -128,23 +127,16 @@ const NodesPageContent = ({
   }, [connection, handleLocation]);
 
   const tableHeadings: Heading[] = [
-    { title: "", sortable: false },
     { title: t("nodesTable.headings.longName"), sortable: true },
-    { title: t("nodesTable.headings.connection"), sortable: true },
+    { title: t("nodesTable.headings.battery"), sortable: true },
+    { title: t("nodesTable.headings.hops"), sortable: true },
     { title: t("nodesTable.headings.lastHeard"), sortable: true },
     { title: t("nodesTable.headings.encryption"), sortable: false },
     { title: t("unit.snr"), sortable: true },
     { title: t("nodesTable.headings.model"), sortable: true },
-    { title: t("nodesTable.headings.macAddress"), sortable: true },
   ];
 
   const tableRows: DataRow[] = filteredNodes.map((node) => {
-    const macAddress =
-      base16
-        .stringify(node.user?.macaddr ?? [])
-        .match(/.{1,2}/g)
-        ?.join(":") ?? t("unknown.shortName");
-
     const shortName =
       node.user?.shortName ??
       numberToHexUnpadded(node.num).slice(-4).toUpperCase();
@@ -153,6 +145,7 @@ const NodesPageContent = ({
       t("fallbackName", {
         last4: shortName,
       });
+    const batteryLevel = node.deviceMetrics?.batteryLevel;
 
     // SNR is reported in dB. Map it to a 0–100% signal-quality heuristic
     // (-10 dB → 0%, +10 dB → 100%) for an at-a-glance read, and pick a tone.
@@ -171,33 +164,45 @@ const NodesPageContent = ({
       cells: [
         {
           content: (
-            <Avatar
-              nodeNum={node.num}
-              showFavorite={node.isFavorite}
-              showError={hasNodeError(node.num)}
-            />
-          ),
-          sortValue: shortName, // Non-sortable column
-        },
-        {
-          content: (
-            <h1
+            <div
               onMouseDown={() => handleNodeInfoDialog(node.num)}
               onKeyUp={(evt) => {
                 if (evt.key === "Enter") {
                   handleNodeInfoDialog(node.num);
                 }
               }}
-              className="cursor-pointer underline ml-2 whitespace-break-spaces"
+              className="flex items-center gap-2 cursor-pointer whitespace-break-spaces"
             >
-              {longName}
-            </h1>
+              <Avatar
+                nodeNum={node.num}
+                showFavorite={node.isFavorite}
+                showError={hasNodeError(node.num)}
+              />
+              <div className="min-w-0">
+                <div className="underline">{longName}</div>
+              </div>
+            </div>
           ),
           sortValue: longName,
         },
         {
           content: (
-            <Mono className="w-16">
+            <Mono className="w-12">
+              {batteryLevel === undefined || batteryLevel === null
+                ? "--"
+                : batteryLevel === 101
+                  ? "Ext"
+                  : `${batteryLevel}%`}
+            </Mono>
+          ),
+          sortValue:
+            batteryLevel === undefined || batteryLevel === null
+              ? -1
+              : batteryLevel,
+        },
+        {
+          content: (
+            <Mono className="w-14">
               {node.hopsAway !== undefined
                 ? node?.viaMqtt === false && node.hopsAway === 0
                   ? t("nodesTable.connectionStatus.direct")
@@ -256,14 +261,12 @@ const NodesPageContent = ({
         },
         {
           content: (
-            <Mono>{Protobuf.Mesh.HardwareModel[node.user?.hwModel ?? 0]}</Mono>
+            <Mono className="max-w-36 overflow-hidden text-ellipsis">
+              {Protobuf.Mesh.HardwareModel[node.user?.hwModel ?? 0]}
+            </Mono>
           ),
           sortValue:
             Protobuf.Mesh.HardwareModel[node.user?.hwModel ?? 0] ?? "UNSET",
-        },
-        {
-          content: <Mono>{macAddress}</Mono>,
-          sortValue: macAddress,
         },
       ],
     };
@@ -309,7 +312,13 @@ const NodesPageContent = ({
         </div>
       </div>
       <div className="overflow-y-auto">
-        <Table headings={tableHeadings} rows={tableRows} />
+        <Table
+          headings={tableHeadings}
+          rows={tableRows}
+          compact
+          showColumnDividers
+          initialSortColumn={t("nodesTable.headings.lastHeard")}
+        />
         <TracerouteResponseDialog
           traceroute={selectedTraceroute}
           open={!!selectedTraceroute}
