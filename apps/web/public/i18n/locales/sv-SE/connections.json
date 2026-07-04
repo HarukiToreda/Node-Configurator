@@ -29,6 +29,17 @@
     "pickConnectionAgain": "Kunde inte ansluta. Du kan behöva välja enheten/porten på nytt.",
     "added": "Anslutning tillagd",
     "savedByName": "{{name}} sparad.",
-    "savedCantConnect": "Anslutningen har sparats men enheten kunde inte anslutas till."
+    "savedCantConnect": "Anslutningen har sparats men enheten kunde inte anslutas till.",
+    "presetDownloaded": "Preset downloaded",
+    "presetDownloadedByName": "{{name}} is ready to import on Android.",
+    "presetDownloadFailed": "Could not create the Android preset file."
+  },
+  "presetDownload": {
+    "title": "Android preset downloads",
+    "description": "Download Haru Client presets in the same DeviceProfile format the Android app imports from its Import Configuration flow.",
+    "limitations": "Channel URL and canned messages still need to be set inside the Android app."
+  },
+  "button": {
+    "downloadAndroidPreset": "Download for Android"
   }
 }

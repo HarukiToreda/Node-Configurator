@@ -30,6 +30,17 @@
     "added": "Подключение добавлено",
     "savedByName": "{{name}} сохранено.",
     "savedCantConnect": "Подключение сохранено, но подключиться не удалось.",
-    "checkConnetion": "Check your device or settings and try again"
+    "checkConnetion": "Check your device or settings and try again",
+    "presetDownloaded": "Preset downloaded",
+    "presetDownloadedByName": "{{name}} is ready to import on Android.",
+    "presetDownloadFailed": "Could not create the Android preset file."
+  },
+  "presetDownload": {
+    "title": "Android preset downloads",
+    "description": "Download Haru Client presets in the same DeviceProfile format the Android app imports from its Import Configuration flow.",
+    "limitations": "Channel URL and canned messages still need to be set inside the Android app."
+  },
+  "button": {
+    "downloadAndroidPreset": "Download for Android"
   }
 }

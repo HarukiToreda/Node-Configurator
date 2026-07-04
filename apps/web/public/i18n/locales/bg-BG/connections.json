@@ -29,6 +29,17 @@
     "pickConnectionAgain": "Не можа да се свърже. Може да се наложи да изберете отново устройството/порта.",
     "added": "Връзката е добавена",
     "savedByName": "{{name}} е запазен.",
-    "savedCantConnect": "Връзката беше запазена, но не можа да се осъществи свързване."
+    "savedCantConnect": "Връзката беше запазена, но не можа да се осъществи свързване.",
+    "presetDownloaded": "Preset downloaded",
+    "presetDownloadedByName": "{{name}} is ready to import on Android.",
+    "presetDownloadFailed": "Could not create the Android preset file."
+  },
+  "presetDownload": {
+    "title": "Android preset downloads",
+    "description": "Download Haru Client presets in the same DeviceProfile format the Android app imports from its Import Configuration flow.",
+    "limitations": "Channel URL and canned messages still need to be set inside the Android app."
+  },
+  "button": {
+    "downloadAndroidPreset": "Download for Android"
   }
 }
