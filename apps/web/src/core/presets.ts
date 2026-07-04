@@ -1,4 +1,4 @@
-import { create, fromBinary } from "@bufbuild/protobuf";
+import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import { Protobuf, type ConfigEditor } from "@meshtastic/sdk";
 import { toByteArray } from "base64-js";
 
@@ -7,6 +7,13 @@ export interface PresetDefinition {
   name: string;
   description: string;
   highlights: readonly string[];
+}
+
+export interface PresetDownloadDefinition {
+  name: string;
+  fileName: string;
+  mimeType: string;
+  bytes: Uint8Array;
 }
 
 interface PresetContext {
@@ -96,6 +103,37 @@ export function applyPreset(
   }
 
   return preset;
+}
+
+export function buildAndroidPresetDownload(
+  presetId: string,
+): PresetDownloadDefinition {
+  let profile: Protobuf.ClientOnly.DeviceProfile;
+  let fileName: string;
+  let name: string;
+
+  if (presetId === "nrf-txt") {
+    profile = buildNrfTxtAndroidProfile();
+    fileName = "nrf-txt_nodeConfig.cfg";
+    name = "NRF-TXT";
+  } else if (presetId === "hel-txt") {
+    profile = buildHelTxtAndroidProfile();
+    fileName = "hel-txt_nodeConfig.cfg";
+    name = "Hel-TXT";
+  } else if (presetId === "hp") {
+    profile = buildHpAndroidProfile();
+    fileName = "hp_nodeConfig.cfg";
+    name = "HP";
+  } else {
+    throw new Error(`Android export is not available for preset: ${presetId}`);
+  }
+
+  return {
+    name,
+    fileName,
+    mimeType: "application/octet-stream",
+    bytes: toBinary(Protobuf.ClientOnly.DeviceProfileSchema, profile),
+  };
 }
 
 function applyNrfTxtPreset({ editor, device, myNode }: PresetContext): void {
@@ -194,6 +232,172 @@ function applyNrfTxtPreset({ editor, device, myNode }: PresetContext): void {
   applyOwner(editor, myNode, "NRF-TXT", "NT");
   editor.setCannedMessageModuleMessages(NRF_TXT_CANNED_MESSAGES);
   editor.setRingtoneMessage(NRF_TXT_RINGTONE);
+}
+
+function buildNrfTxtAndroidProfile(): Protobuf.ClientOnly.DeviceProfile {
+  const importedLora = parseChannelUrl(NRF_TXT_CHANNEL_URL, {
+    positionPrecisionOverride: PUBLIC_CHANNEL_SAFE_POSITION_PRECISION,
+  }).loraConfig;
+
+  return create(Protobuf.ClientOnly.DeviceProfileSchema, {
+    longName: "NRF-TXT",
+    shortName: "NRTX",
+    config: create(Protobuf.LocalOnly.LocalConfigSchema, {
+      device: create(Protobuf.Config.Config_DeviceConfigSchema, {
+        buzzerGpio: 33,
+        tzdef: "EST5EDT,M3.2.0,M11.1.0",
+      }),
+      display: create(Protobuf.Config.Config_DisplayConfigSchema, {
+        screenOnSecs: 60,
+        headingBold: true,
+        units: Protobuf.Config.Config_DisplayConfig_DisplayUnits.IMPERIAL,
+        use12hClock: true,
+        useLongNodeName: true,
+        enableMessageBubbles: true,
+      }),
+      bluetooth: create(Protobuf.Config.Config_BluetoothConfigSchema, {
+        enabled: true,
+        mode: Protobuf.Config.Config_BluetoothConfig_PairingMode.FIXED_PIN,
+      }),
+      position: create(Protobuf.Config.Config_PositionConfigSchema, {
+        gpsMode: Protobuf.Config.Config_PositionConfig_GpsMode.DISABLED,
+      }),
+      lora: create(Protobuf.Config.Config_LoRaConfigSchema, {
+        ...(importedLora ?? {}),
+        region: Protobuf.Config.Config_LoRaConfig_RegionCode.US,
+      }),
+    }),
+    moduleConfig: create(Protobuf.LocalOnly.LocalModuleConfigSchema, {
+      externalNotification: create(
+        Protobuf.ModuleConfig.ModuleConfig_ExternalNotificationConfigSchema,
+        {
+          enabled: true,
+          active: true,
+          alertBell: true,
+          alertBellBuzzer: true,
+          alertMessage: true,
+          alertMessageBuzzer: true,
+          output: 35,
+          outputBuzzer: 33,
+          usePwm: true,
+        },
+      ),
+      telemetry: create(
+        Protobuf.ModuleConfig.ModuleConfig_TelemetryConfigSchema,
+        {
+          deviceUpdateInterval: 300,
+          environmentUpdateInterval: 300,
+          environmentMeasurementEnabled: true,
+          environmentScreenEnabled: true,
+          environmentDisplayFahrenheit: true,
+          airQualityEnabled: true,
+          airQualityInterval: 300,
+          deviceTelemetryEnabled: true,
+        },
+      ),
+    }),
+    ringtone: NRF_TXT_RINGTONE,
+    cannedMessages: NRF_TXT_CANNED_MESSAGES,
+  });
+}
+
+function buildHelTxtAndroidProfile(): Protobuf.ClientOnly.DeviceProfile {
+  const importedLora = parseChannelUrl(HEL_TXT_CHANNEL_URL).loraConfig;
+
+  return create(Protobuf.ClientOnly.DeviceProfileSchema, {
+    longName: "Hel-TXT",
+    shortName: "HT",
+    config: create(Protobuf.LocalOnly.LocalConfigSchema, {
+      device: create(Protobuf.Config.Config_DeviceConfigSchema, {
+        buzzerGpio: 6,
+        tzdef: "EST5EDT,M3.2.0,M11.1.0",
+      }),
+      display: create(Protobuf.Config.Config_DisplayConfigSchema, {
+        screenOnSecs: 60,
+        headingBold: true,
+        units: Protobuf.Config.Config_DisplayConfig_DisplayUnits.IMPERIAL,
+        use12hClock: true,
+      }),
+      power: create(Protobuf.Config.Config_PowerConfigSchema, {
+        isPowerSaving: true,
+      }),
+      bluetooth: create(Protobuf.Config.Config_BluetoothConfigSchema, {
+        enabled: true,
+        mode: Protobuf.Config.Config_BluetoothConfig_PairingMode.FIXED_PIN,
+      }),
+      position: create(Protobuf.Config.Config_PositionConfigSchema, {
+        gpsMode: Protobuf.Config.Config_PositionConfig_GpsMode.DISABLED,
+        rxGpio: 5,
+        txGpio: 4,
+        gpsEnGpio: 3,
+      }),
+      lora: create(Protobuf.Config.Config_LoRaConfigSchema, {
+        ...(importedLora ?? {}),
+        region: Protobuf.Config.Config_LoRaConfig_RegionCode.US,
+      }),
+    }),
+    moduleConfig: create(Protobuf.LocalOnly.LocalModuleConfigSchema, {
+      externalNotification: create(
+        Protobuf.ModuleConfig.ModuleConfig_ExternalNotificationConfigSchema,
+        {
+          enabled: true,
+          active: true,
+          alertBell: true,
+          alertBellBuzzer: true,
+          alertMessage: true,
+          alertMessageBuzzer: true,
+          outputBuzzer: 6,
+          usePwm: true,
+        },
+      ),
+      telemetry: create(
+        Protobuf.ModuleConfig.ModuleConfig_TelemetryConfigSchema,
+        {
+          deviceUpdateInterval: 300,
+          environmentUpdateInterval: 300,
+          environmentMeasurementEnabled: true,
+          environmentScreenEnabled: true,
+          environmentDisplayFahrenheit: true,
+          airQualityEnabled: true,
+          airQualityInterval: 300,
+          deviceTelemetryEnabled: true,
+        },
+      ),
+    }),
+    ringtone: HEL_TXT_RINGTONE,
+    cannedMessages: HEL_TXT_CANNED_MESSAGES,
+  });
+}
+
+function buildHpAndroidProfile(): Protobuf.ClientOnly.DeviceProfile {
+  const importedLora = parseChannelUrl(HP_CHANNEL_URL).loraConfig;
+
+  return create(Protobuf.ClientOnly.DeviceProfileSchema, {
+    longName: "Paper",
+    shortName: "WP",
+    config: create(Protobuf.LocalOnly.LocalConfigSchema, {
+      device: create(Protobuf.Config.Config_DeviceConfigSchema, {
+        tzdef: "EST5EDT,M3.2.0,M11.1.0",
+      }),
+      display: create(Protobuf.Config.Config_DisplayConfigSchema, {
+        headingBold: true,
+        units: Protobuf.Config.Config_DisplayConfig_DisplayUnits.IMPERIAL,
+        use12hClock: true,
+      }),
+      power: create(Protobuf.Config.Config_PowerConfigSchema, {
+        isPowerSaving: true,
+      }),
+      bluetooth: create(Protobuf.Config.Config_BluetoothConfigSchema, {
+        enabled: true,
+        mode: Protobuf.Config.Config_BluetoothConfig_PairingMode.FIXED_PIN,
+      }),
+      lora: create(Protobuf.Config.Config_LoRaConfigSchema, {
+        ...(importedLora ?? {}),
+        region: Protobuf.Config.Config_LoRaConfig_RegionCode.UNSET,
+      }),
+    }),
+    cannedMessages: HP_CANNED_MESSAGES,
+  });
 }
 
 function applyHelTxtPreset({ editor, device, myNode }: PresetContext): void {
@@ -404,27 +608,7 @@ function importChannelUrl(
     positionPrecisionOverride?: number;
   },
 ): Protobuf.Config.Config_LoRaConfig | undefined {
-  const channelsUrl = new URL(channelUrl);
-  if (
-    channelsUrl.hostname !== "meshtastic.org" ||
-    channelsUrl.pathname !== "/e/"
-  ) {
-    throw new Error("Preset channel URL must point to meshtastic.org/e/.");
-  }
-  if (!channelsUrl.hash) {
-    throw new Error("Preset channel URL is missing its encoded channel payload.");
-  }
-
-  const encoded = channelsUrl.hash.substring(1);
-  const padded = encoded
-    .padEnd(encoded.length + ((4 - (encoded.length % 4)) % 4), "=")
-    .replace(/-/g, "+")
-    .replace(/_/g, "/");
-
-  const channelSet = fromBinary(
-    Protobuf.AppOnly.ChannelSetSchema,
-    toByteArray(padded),
-  );
+  const channelSet = parseChannelUrl(channelUrl);
 
   channelSet.settings.forEach((settings, index) => {
     const normalizedSettings =
@@ -451,4 +635,27 @@ function importChannelUrl(
   });
 
   return channelSet.loraConfig;
+}
+
+function parseChannelUrl(channelUrl: string): Protobuf.AppOnly.ChannelSet {
+  const channelsUrl = new URL(channelUrl);
+  if (
+    channelsUrl.hostname !== "meshtastic.org" ||
+    channelsUrl.pathname !== "/e/"
+  ) {
+    throw new Error("Preset channel URL must point to meshtastic.org/e/.");
+  }
+  if (!channelsUrl.hash) {
+    throw new Error(
+      "Preset channel URL is missing its encoded channel payload.",
+    );
+  }
+
+  const encoded = channelsUrl.hash.substring(1);
+  const padded = encoded
+    .padEnd(encoded.length + ((4 - (encoded.length % 4)) % 4), "=")
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  return fromBinary(Protobuf.AppOnly.ChannelSetSchema, toByteArray(padded));
 }

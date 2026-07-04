@@ -7,6 +7,11 @@
     "title": "Serial connection",
     "description": "Pick the COM port for your node. The current session is temporary and is not saved in your browser."
   },
+  "presetDownload": {
+    "title": "Android preset downloads",
+    "description": "Download Haru Client presets in the same DeviceProfile format the Android app imports from its Import Configuration flow.",
+    "limitations": "Channel URL and canned messages still need to be set inside the Android app."
+  },
   "connectionType_ble": "BLE",
   "connectionType_serial": "Serial",
   "connectionType_network": "Network",
@@ -26,6 +31,7 @@
     "chooseAnotherPort": "Choose Another Port",
     "reconnect": "Reconnect",
     "disconnect": "Disconnect",
+    "downloadAndroidPreset": "Download for Android",
     "skipBack": "Back to Client",
     "retry": "Retry",
     "delete": "Delete",
@@ -49,6 +55,9 @@
     "disconnected": "Disconnected",
     "failed": "Failed to connect",
     "checkConnection": "Check your device or settings and try again",
+    "presetDownloaded": "Preset downloaded",
+    "presetDownloadedByName": "{{name}} is ready to import on Android.",
+    "presetDownloadFailed": "Could not create the Android preset file.",
     "defaultSet": "Default set",
     "defaultConnection": "Default connection is now {{nameisconnected}}",
     "deleted": "Deleted",
