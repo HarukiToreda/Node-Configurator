@@ -679,7 +679,7 @@ function applyHp2Preset({ editor, device, myNode }: PresetContext): void {
     nagTimeout: 0,
   });
 
-  applyOwner(editor, myNode, "HP2", "HP2");
+  applyOwner(editor, myNode, "HP2", "HP2", 1);
   editor.setCannedMessageModuleMessages(HP2_CANNED_MESSAGES);
   editor.setRingtoneMessage(HP2_RINGTONE);
 }
@@ -689,6 +689,7 @@ function applyOwner(
   myNode: Protobuf.Mesh.NodeInfo | undefined,
   longPrefix: string,
   shortPrefix: string,
+  shortSuffixLength = 2,
 ): void {
   const owner = create(Protobuf.Mesh.UserSchema, {
     ...(myNode?.user ??
@@ -704,7 +705,9 @@ function applyOwner(
     create(Protobuf.Mesh.UserSchema, {
       ...owner,
       longName: suffix ? `${longPrefix} ${suffix}` : longPrefix,
-      shortName: suffix ? `${shortPrefix}${suffix.slice(-2)}` : shortPrefix,
+      shortName: suffix
+        ? `${shortPrefix}${suffix.slice(-shortSuffixLength)}`
+        : shortPrefix,
     }),
   );
 }
