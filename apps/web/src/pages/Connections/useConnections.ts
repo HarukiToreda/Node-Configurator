@@ -21,12 +21,32 @@ import { useAppStore, useDeviceStore } from "@core/stores";
 import { subscribeAll } from "@core/subscriptions.ts";
 import { randId } from "@core/utils/randId.ts";
 import { createLogger, DeviceStatusEnum } from "@meshtastic/sdk";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 const log = createLogger("useConnections");
 
 const cachedTransports = new Map<ConnectionId, SerialPort>();
 const configSubscriptions = new Map<ConnectionId, () => void>();
+
+// Auto-reconnect bookkeeping. Meshtastic devices reboot after certain config
+// commits (LoRa/device/bluetooth/etc.), which drops the USB serial
+// connection. Without this, the UI is left stale until the user manually
+// reconnects. `manualDisconnects` suppresses auto-reconnect for
+// user-initiated disconnects/removals.
+const manualDisconnects = new Set<ConnectionId>();
+const reconnectTimers = new Map<ConnectionId, ReturnType<typeof setTimeout>>();
+const reconnectAttempts = new Map<ConnectionId, number>();
+const RECONNECT_DELAYS_MS = [2_000, 3_000, 5_000, 8_000, 8_000, 8_000];
+const MAX_RECONNECT_ATTEMPTS = RECONNECT_DELAYS_MS.length;
+
+function clearReconnect(id: ConnectionId): void {
+  const timer = reconnectTimers.get(id);
+  if (timer) {
+    clearTimeout(timer);
+  }
+  reconnectTimers.delete(id);
+  reconnectAttempts.delete(id);
+}
 
 export function useConnections() {
   const connections = useDeviceStore((s) => s.savedConnections);
@@ -39,6 +59,69 @@ export function useConnections() {
   const { addDevice } = useDeviceStore();
   const { setSelectedDevice } = useAppStore();
   const selectedDeviceId = useAppStore((s) => s.selectedDeviceId);
+
+  // `connect` and `setupMeshDevice` are mutually recursive (connect calls
+  // setupMeshDevice; setupMeshDevice schedules a reconnect that needs to call
+  // connect again after a device-initiated disconnect/reboot). A ref avoids
+  // a useCallback dependency cycle.
+  const connectRef =
+    useRef<
+      (
+        id: ConnectionId,
+        opts?: { allowPrompt?: boolean; isAutoReconnect?: boolean },
+      ) => Promise<boolean>
+    >(null);
+
+  const scheduleReconnect = useCallback((id: ConnectionId) => {
+    if (manualDisconnects.has(id)) {
+      log.debug("scheduleReconnect: skipped, manual disconnect", { id });
+      return;
+    }
+    if (reconnectTimers.has(id)) {
+      log.debug("scheduleReconnect: already scheduled", { id });
+      return;
+    }
+
+    const attempt = reconnectAttempts.get(id) ?? 0;
+    if (attempt >= MAX_RECONNECT_ATTEMPTS) {
+      log.warn("scheduleReconnect: giving up after max attempts", { id });
+      clearReconnect(id);
+      return;
+    }
+
+    const delay =
+      RECONNECT_DELAYS_MS[Math.min(attempt, RECONNECT_DELAYS_MS.length - 1)];
+    log.info("scheduleReconnect: scheduling reconnect attempt", {
+      id,
+      attempt,
+      delay,
+    });
+
+    const timer = setTimeout(() => {
+      reconnectTimers.delete(id);
+      if (manualDisconnects.has(id)) {
+        return;
+      }
+      reconnectAttempts.set(id, attempt + 1);
+
+      // The device rebooted and re-enumerated on USB; the previously granted
+      // SerialPort object may no longer be usable, so drop it and let
+      // openTransport re-resolve the port by vendor/product id.
+      cachedTransports.delete(id);
+      configSubscriptions.get(id)?.();
+      configSubscriptions.delete(id);
+      stopHeartbeat(id);
+
+      void connectRef.current?.(id, { isAutoReconnect: true }).then((ok) => {
+        if (ok) {
+          clearReconnect(id);
+        } else {
+          scheduleReconnect(id);
+        }
+      });
+    }, delay);
+    reconnectTimers.set(id, timer);
+  }, []);
 
   const updateStatus = useCallback(
     (id: ConnectionId, status: ConnectionStatus, error?: string) => {
@@ -53,6 +136,8 @@ export function useConnections() {
 
   const teardown = useCallback(async (id: ConnectionId, conn?: Connection) => {
     log.debug("teardown: enter", { id });
+    manualDisconnects.add(id);
+    clearReconnect(id);
     stopHeartbeat(id);
     configSubscriptions.get(id)?.();
     configSubscriptions.delete(id);
@@ -87,6 +172,7 @@ export function useConnections() {
       }
       meshRegistry.unregister(id);
       removeSavedConnectionFromStore(id);
+      manualDisconnects.delete(id);
     },
     [connections, removeSavedConnectionFromStore, teardown],
   );
@@ -162,6 +248,17 @@ export function useConnections() {
         (status) => {
           if (status === DeviceStatusEnum.DeviceConfigured) {
             markConfigured("device.status");
+          } else if (
+            status === DeviceStatusEnum.DeviceDisconnected ||
+            status === DeviceStatusEnum.DeviceError
+          ) {
+            log.info("device disconnected - scheduling reconnect", {
+              id,
+              status,
+            });
+            stopHeartbeat(id);
+            updateStatus(id, "disconnected");
+            scheduleReconnect(id);
           }
         },
       );
@@ -219,17 +316,25 @@ export function useConnections() {
       setActiveConnectionId,
       updateSavedConnection,
       updateStatus,
+      scheduleReconnect,
     ],
   );
 
   const connect = useCallback(
-    async (id: ConnectionId, opts?: { allowPrompt?: boolean }) => {
+    async (
+      id: ConnectionId,
+      opts?: { allowPrompt?: boolean; isAutoReconnect?: boolean },
+    ) => {
       const conn = useDeviceStore
         .getState()
         .savedConnections.find((entry) => entry.id === id);
       if (!conn) {
         log.warn("connect: unknown connection id", { id });
         return false;
+      }
+      if (!opts?.isAutoReconnect) {
+        manualDisconnects.delete(id);
+        clearReconnect(id);
       }
       if (conn.status === "configured" || conn.status === "connected") {
         log.debug("connect: already connected", { id, status: conn.status });
@@ -268,6 +373,7 @@ export function useConnections() {
     },
     [setupMeshDevice, updateStatus],
   );
+  connectRef.current = connect;
 
   const disconnect = useCallback(
     async (id: ConnectionId) => {
