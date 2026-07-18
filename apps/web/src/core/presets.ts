@@ -46,6 +46,12 @@ const HP_CANNED_MESSAGES =
 const HP_CHANNEL_URL =
   "https://meshtastic.org/e/#CgcSAQE6AgggEhYIARj6ASALKAU4AUADSAFQG2gBwAYB";
 
+const HP2_CANNED_MESSAGES =
+  "Test|\u{1F44D}|\u{1F44E}|\u{1F600}|Hello|Heard|Enabling GPS|share Location|Come to me|Going to you|Help|SOS";
+const HP2_RINGTONE = "Bubble:d=16,o=5,b=140:a6,b6,d7";
+const HP2_CHANNEL_URL =
+  "https://meshtastic.org/e/#CgcSAQE6AgggEhYIARj6ASALKAU4AUADSAFQG2gBwAYB";
+
 export const presetCatalog: readonly PresetDefinition[] = [
   {
     id: "nrf-txt",
@@ -83,6 +89,19 @@ export const presetCatalog: readonly PresetDefinition[] = [
       "Queues canned messages so Save pushes them with the rest of the preset.",
     ],
   },
+  {
+    id: "hp2",
+    name: "HP2",
+    description:
+      "Loads your HP2 baseline with imperial display formatting, fixed-PIN bluetooth, a disabled external notification nag timeout, canned messages, and ringtone.",
+    highlights: [
+      "Sets device time zone, display units/clock format, and bluetooth pairing mode.",
+      "Disables the external notification nag timeout.",
+      "Imports the channel URL into channel drafts and sets LoRa region to unset.",
+      "Builds owner long/short names from the connected node id using HP2.",
+      "Queues canned messages and ringtone so Save pushes them with the rest of the preset.",
+    ],
+  },
 ] as const;
 
 export function applyPreset(
@@ -100,6 +119,8 @@ export function applyPreset(
     applyHelTxtPreset(context);
   } else if (presetId === "hp") {
     applyHpPreset(context);
+  } else if (presetId === "hp2") {
+    applyHp2Preset(context);
   }
 
   return preset;
@@ -124,6 +145,10 @@ export function buildAndroidPresetDownload(
     profile = buildHpAndroidProfile();
     fileName = "hp_nodeConfig.cfg";
     name = "HP";
+  } else if (presetId === "hp2") {
+    profile = buildHp2AndroidProfile();
+    fileName = "hp2_nodeConfig.cfg";
+    name = "HP2";
   } else {
     throw new Error(`Android export is not available for preset: ${presetId}`);
   }
@@ -400,6 +425,42 @@ function buildHpAndroidProfile(): Protobuf.ClientOnly.DeviceProfile {
   });
 }
 
+function buildHp2AndroidProfile(): Protobuf.ClientOnly.DeviceProfile {
+  const importedLora = parseChannelUrl(HP2_CHANNEL_URL).loraConfig;
+
+  return create(Protobuf.ClientOnly.DeviceProfileSchema, {
+    longName: "HP2",
+    shortName: "HP2",
+    config: create(Protobuf.LocalOnly.LocalConfigSchema, {
+      device: create(Protobuf.Config.Config_DeviceConfigSchema, {
+        tzdef: "EST5EDT,M3.2.0,M11.1.0",
+      }),
+      display: create(Protobuf.Config.Config_DisplayConfigSchema, {
+        units: Protobuf.Config.Config_DisplayConfig_DisplayUnits.IMPERIAL,
+        use12hClock: true,
+      }),
+      bluetooth: create(Protobuf.Config.Config_BluetoothConfigSchema, {
+        enabled: true,
+        mode: Protobuf.Config.Config_BluetoothConfig_PairingMode.FIXED_PIN,
+      }),
+      lora: create(Protobuf.Config.Config_LoRaConfigSchema, {
+        ...(importedLora ?? {}),
+        region: Protobuf.Config.Config_LoRaConfig_RegionCode.UNSET,
+      }),
+    }),
+    moduleConfig: create(Protobuf.LocalOnly.LocalModuleConfigSchema, {
+      externalNotification: create(
+        Protobuf.ModuleConfig.ModuleConfig_ExternalNotificationConfigSchema,
+        {
+          nagTimeout: 0,
+        },
+      ),
+    }),
+    ringtone: HP2_RINGTONE,
+    cannedMessages: HP2_CANNED_MESSAGES,
+  });
+}
+
 function applyHelTxtPreset({ editor, device, myNode }: PresetContext): void {
   const currentDevice =
     (device.getEffectiveConfig("device") as
@@ -564,6 +625,63 @@ function applyHpPreset({ editor, device, myNode }: PresetContext): void {
 
   applyOwner(editor, myNode, "Paper", "WP");
   editor.setCannedMessageModuleMessages(HP_CANNED_MESSAGES);
+}
+
+function applyHp2Preset({ editor, device, myNode }: PresetContext): void {
+  const currentDevice =
+    (device.getEffectiveConfig("device") as
+      | Protobuf.Config.Config_DeviceConfig
+      | undefined) ?? create(Protobuf.Config.Config_DeviceConfigSchema);
+  editor.setRadioSection("device", {
+    ...currentDevice,
+    tzdef: "EST5EDT,M3.2.0,M11.1.0",
+  });
+
+  const currentDisplay =
+    (device.getEffectiveConfig("display") as
+      | Protobuf.Config.Config_DisplayConfig
+      | undefined) ?? create(Protobuf.Config.Config_DisplayConfigSchema);
+  editor.setRadioSection("display", {
+    ...currentDisplay,
+    units: Protobuf.Config.Config_DisplayConfig_DisplayUnits.IMPERIAL,
+    use12hClock: true,
+  });
+
+  const currentBluetooth =
+    (device.getEffectiveConfig("bluetooth") as
+      | Protobuf.Config.Config_BluetoothConfig
+      | undefined) ?? create(Protobuf.Config.Config_BluetoothConfigSchema);
+  editor.setRadioSection("bluetooth", {
+    ...currentBluetooth,
+    mode: Protobuf.Config.Config_BluetoothConfig_PairingMode.FIXED_PIN,
+  });
+
+  const importedLora = importChannelUrl(editor, HP2_CHANNEL_URL);
+  const currentLora =
+    (device.getEffectiveConfig("lora") as
+      | Protobuf.Config.Config_LoRaConfig
+      | undefined) ??
+    device.config.lora ??
+    create(Protobuf.Config.Config_LoRaConfigSchema);
+  editor.setRadioSection("lora", {
+    ...currentLora,
+    ...importedLora,
+    region: Protobuf.Config.Config_LoRaConfig_RegionCode.UNSET,
+  });
+
+  const currentExternalNotification =
+    (device.getEffectiveModuleConfig("externalNotification") as
+      | Protobuf.ModuleConfig.ModuleConfig_ExternalNotificationConfig
+      | undefined) ??
+    create(Protobuf.ModuleConfig.ModuleConfig_ExternalNotificationConfigSchema);
+  editor.setModuleSection("externalNotification", {
+    ...currentExternalNotification,
+    nagTimeout: 0,
+  });
+
+  applyOwner(editor, myNode, "HP2", "HP2");
+  editor.setCannedMessageModuleMessages(HP2_CANNED_MESSAGES);
+  editor.setRingtoneMessage(HP2_RINGTONE);
 }
 
 function applyOwner(
