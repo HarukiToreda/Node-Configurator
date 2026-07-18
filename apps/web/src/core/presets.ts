@@ -1,4 +1,4 @@
-import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
+import { clone, create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import { Protobuf, type ConfigEditor } from "@meshtastic/sdk";
 import { toByteArray } from "base64-js";
 
@@ -260,9 +260,7 @@ function applyNrfTxtPreset({ editor, device, myNode }: PresetContext): void {
 }
 
 function buildNrfTxtAndroidProfile(): Protobuf.ClientOnly.DeviceProfile {
-  const importedLora = parseChannelUrl(NRF_TXT_CHANNEL_URL, {
-    positionPrecisionOverride: PUBLIC_CHANNEL_SAFE_POSITION_PRECISION,
-  }).loraConfig;
+  const importedLora = parseChannelUrl(NRF_TXT_CHANNEL_URL).loraConfig;
 
   return create(Protobuf.ClientOnly.DeviceProfileSchema, {
     longName: "NRF-TXT",
@@ -287,10 +285,10 @@ function buildNrfTxtAndroidProfile(): Protobuf.ClientOnly.DeviceProfile {
       position: create(Protobuf.Config.Config_PositionConfigSchema, {
         gpsMode: Protobuf.Config.Config_PositionConfig_GpsMode.DISABLED,
       }),
-      lora: create(Protobuf.Config.Config_LoRaConfigSchema, {
-        ...(importedLora ?? {}),
-        region: Protobuf.Config.Config_LoRaConfig_RegionCode.US,
-      }),
+      lora: withLoraRegion(
+        importedLora,
+        Protobuf.Config.Config_LoRaConfig_RegionCode.US,
+      ),
     }),
     moduleConfig: create(Protobuf.LocalOnly.LocalModuleConfigSchema, {
       externalNotification: create(
@@ -356,10 +354,10 @@ function buildHelTxtAndroidProfile(): Protobuf.ClientOnly.DeviceProfile {
         txGpio: 4,
         gpsEnGpio: 3,
       }),
-      lora: create(Protobuf.Config.Config_LoRaConfigSchema, {
-        ...(importedLora ?? {}),
-        region: Protobuf.Config.Config_LoRaConfig_RegionCode.US,
-      }),
+      lora: withLoraRegion(
+        importedLora,
+        Protobuf.Config.Config_LoRaConfig_RegionCode.US,
+      ),
     }),
     moduleConfig: create(Protobuf.LocalOnly.LocalModuleConfigSchema, {
       externalNotification: create(
@@ -416,10 +414,10 @@ function buildHpAndroidProfile(): Protobuf.ClientOnly.DeviceProfile {
         enabled: true,
         mode: Protobuf.Config.Config_BluetoothConfig_PairingMode.FIXED_PIN,
       }),
-      lora: create(Protobuf.Config.Config_LoRaConfigSchema, {
-        ...(importedLora ?? {}),
-        region: Protobuf.Config.Config_LoRaConfig_RegionCode.UNSET,
-      }),
+      lora: withLoraRegion(
+        importedLora,
+        Protobuf.Config.Config_LoRaConfig_RegionCode.UNSET,
+      ),
     }),
     cannedMessages: HP_CANNED_MESSAGES,
   });
@@ -443,10 +441,10 @@ function buildHp2AndroidProfile(): Protobuf.ClientOnly.DeviceProfile {
         enabled: true,
         mode: Protobuf.Config.Config_BluetoothConfig_PairingMode.FIXED_PIN,
       }),
-      lora: create(Protobuf.Config.Config_LoRaConfigSchema, {
-        ...(importedLora ?? {}),
-        region: Protobuf.Config.Config_LoRaConfig_RegionCode.UNSET,
-      }),
+      lora: withLoraRegion(
+        importedLora,
+        Protobuf.Config.Config_LoRaConfig_RegionCode.UNSET,
+      ),
     }),
     moduleConfig: create(Protobuf.LocalOnly.LocalModuleConfigSchema, {
       externalNotification: create(
@@ -722,6 +720,17 @@ function deriveNodeSuffix(nodeId: string): string {
   return normalized.slice(-4);
 }
 
+function withLoraRegion(
+  importedLora: Protobuf.Config.Config_LoRaConfig | undefined,
+  region: Protobuf.Config.Config_LoRaConfig_RegionCode,
+): Protobuf.Config.Config_LoRaConfig {
+  const lora = importedLora
+    ? clone(Protobuf.Config.Config_LoRaConfigSchema, importedLora)
+    : create(Protobuf.Config.Config_LoRaConfigSchema);
+  lora.region = region;
+  return lora;
+}
+
 function importChannelUrl(
   editor: ConfigEditor,
   channelUrl: string,
@@ -732,16 +741,17 @@ function importChannelUrl(
   const channelSet = parseChannelUrl(channelUrl);
 
   channelSet.settings.forEach((settings, index) => {
-    const normalizedSettings =
-      options?.positionPrecisionOverride === undefined
-        ? settings
-        : create(Protobuf.Channel.ChannelSettingsSchema, {
-            ...settings,
-            moduleSettings: create(Protobuf.Channel.ModuleSettingsSchema, {
-              ...settings.moduleSettings,
-              positionPrecision: options.positionPrecisionOverride,
-            }),
-          });
+    let normalizedSettings = settings;
+    if (options?.positionPrecisionOverride !== undefined) {
+      const moduleSettings = settings.moduleSettings
+        ? clone(Protobuf.Channel.ModuleSettingsSchema, settings.moduleSettings)
+        : create(Protobuf.Channel.ModuleSettingsSchema);
+      moduleSettings.positionPrecision = options.positionPrecisionOverride;
+      normalizedSettings = create(Protobuf.Channel.ChannelSettingsSchema, {
+        ...settings,
+        moduleSettings,
+      });
+    }
 
     editor.setChannel(
       create(Protobuf.Channel.ChannelSchema, {
